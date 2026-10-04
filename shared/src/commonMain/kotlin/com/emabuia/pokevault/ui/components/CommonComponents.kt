@@ -1,0 +1,168 @@
+package com.emabuia.pokevault.ui.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.SignalWifiOff
+import androidx.compose.material.icons.filled.CollectionsBookmark
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.emabuia.pokevault.ui.theme.*
+import com.emabuia.pokevault.util.AppLocale
+
+@Composable
+fun OfflineBanner(modifier: Modifier = Modifier) {
+    // Su Android lo stato viene da NetworkUtils (ConnectivityManager). Su iOS
+    // servira' NWPathMonitor: finche' non c'e', il banner resta spento e lo
+    // stato offline lo raccontano le schermate (la cache mostra cosa c'e').
+    val isOnline = true
+
+    if (!isOnline) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(AppColors.red.copy(alpha = 0.15f))
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.SignalWifiOff,
+                contentDescription = null,
+                tint = AppColors.red,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = AppLocale.offlineMessage,
+                color = AppColors.red,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyStateView(
+    icon: ImageVector = Icons.Default.CollectionsBookmark,
+    title: String,
+    subtitle: String = "",
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = AppColors.textMuted.copy(alpha = 0.5f),
+            modifier = Modifier.size(64.dp)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = title,
+            color = AppColors.textSecondary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center
+        )
+        if (subtitle.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = subtitle,
+                color = AppColors.textMuted,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun ErrorStateView(
+    message: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            Icons.Default.ErrorOutline,
+            contentDescription = null,
+            tint = AppColors.red.copy(alpha = 0.6f),
+            modifier = Modifier.size(48.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = message,
+            color = AppColors.textSecondary,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+/**
+ * Distingue "sto ancora caricando" da "non esiste".
+ *
+ * Diversi schermi di dettaglio mostravano un CircularProgressIndicator
+ * incondizionato quando l'entita' cercata era null: per un id cancellato o non
+ * valido lo spinner girava all'infinito, senza messaggio e senza modo di
+ * tornare indietro.
+ */
+@Composable
+fun NotFoundOrLoadingView(
+    isLoading: Boolean,
+    message: String,
+    onBack: () -> Unit,
+    accentColor: androidx.compose.ui.graphics.Color = AppColors.blue,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AppColors.background),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isLoading) {
+            CircularProgressIndicator(color = accentColor)
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                ErrorStateView(message = message)
+                Button(
+                    onClick = onBack,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                ) {
+                    Text(text = AppLocale.back, color = AppColors.textPrimary, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}

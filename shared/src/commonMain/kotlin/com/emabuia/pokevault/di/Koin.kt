@@ -12,6 +12,7 @@ import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.cards.ExpansionCardsViewModel
 import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
+import com.emabuia.pokevault.screens.stats.StatsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -50,6 +51,7 @@ val viewModelModule = module {
     factoryOf(::ExpansionsViewModel)
     factoryOf(::AuthViewModel)
     factoryOf(::CollectionViewModel)
+    factoryOf(::StatsViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
 }
 
@@ -67,7 +69,8 @@ fun initKoin(cacheDir: String, dataDir: String) {
 }
 
 private const val CACHE = "cache"
-private const val DATA = "data"
+/** La cartella dati dell'app (sessione, preferenze): non la svuota il sistema. */
+const val DATA = "data"
 
 @OptIn(ExperimentalTime::class)
 private fun nowMillis(): Long = Clock.System.now().toEpochMilliseconds()

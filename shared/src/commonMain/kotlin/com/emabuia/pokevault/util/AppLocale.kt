@@ -12,6 +12,27 @@ object AppLocale {
 
     val errorPrefix: String get() = "Errore"
     val unknownExpansion: String get() = "Espansione sconosciuta"
+    val unknown: String get() = "Sconosciuto"
+    val other: String get() = "Altro"
+    val unknownError: String get() = "Errore sconosciuto"
+    val back: String get() = "Indietro"
+    val offlineMessage: String get() = "Sei offline. Alcune funzioni non sono disponibili."
+
+    val statistics: String get() = "Statistiche"
+    val totalCards: String get() = "Carte Totali"
+    val uniqueCards: String get() = "Carte Uniche"
+    val totalValue: String get() = "Valore Totale"
+    val averageValue: String get() = "Valore Medio"
+    val mostValuable: String get() = "Più Preziosa"
+    val graded: String get() = "Graduate"
+    val setCompletion: String get() = "Completamento Set"
+    val bySet: String get() = "Per Set"
+    val byRarity: String get() = "Per Rarità"
+    val byType: String get() = "Per Tipo"
+    val emptyStatsTitle: String get() = "Nessuna statistica disponibile"
+    val emptyStatsSubtitle: String get() = "Aggiungi carte alla tua collezione per vedere le statistiche"
+    fun setCompletedTitle(setName: String) = "$setName completato"
+    val setCompletedSubtitle: String get() = "Hai tutte le carte di questa espansione"
 
     private val rarityItMap = mapOf(
         "common" to "Comune",
