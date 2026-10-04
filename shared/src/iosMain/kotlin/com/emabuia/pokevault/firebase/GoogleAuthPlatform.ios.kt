@@ -8,6 +8,7 @@ import platform.AuthenticationServices.ASWebAuthenticationSessionErrorCodeCancel
 import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 import platform.UIKit.UIWindow
+import platform.UIKit.UIWindowScene
 import platform.darwin.NSObject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -57,7 +58,19 @@ private class IosGoogleAuthLauncher : GoogleAuthLauncher {
         }
 }
 
+/**
+ * La finestra su cui iOS appoggia la pagina di Google.
+ *
+ * Non UIApplication.keyWindow: in un'app SwiftUI con le scene risponde spesso
+ * null, e il ripiego su una UIWindow() nuova apriva la pagina su una finestra
+ * invisibile (il tasto Google "non faceva niente"). Si cerca la finestra
+ * attiva fra le scene collegate, come vuole iOS dalla 13 in poi.
+ */
 private class WindowAnchor : NSObject(), ASWebAuthenticationPresentationContextProvidingProtocol {
-    override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor =
-        UIApplication.sharedApplication.keyWindow ?: UIWindow()
+    override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): ASPresentationAnchor {
+        val windows = UIApplication.sharedApplication.connectedScenes
+            .filterIsInstance<UIWindowScene>()
+            .flatMap { scene -> scene.windows.filterIsInstance<UIWindow>() }
+        return windows.firstOrNull { it.isKeyWindow() } ?: windows.firstOrNull() ?: UIWindow()
+    }
 }

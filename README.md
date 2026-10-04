@@ -53,7 +53,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Sign in with Apple (obbligatorio sull'App Store se c'è Google): serve l'account sviluppatore
 - [ ] Refresh token nel Portachiavi iOS invece che in un file
 - [x] Collezione in sola lettura da Firestore: divisa per espansione, totali, stampe raggruppate come su Android (collectionCardKey), offline
-- [ ] Aggiungere, modificare e togliere carte (scritture su Firestore, con test prima di toccare dati veri)
+- [x] Aggiungere carte dal dettaglio (stampa, copie, condizione, lingua), cambiare copie e togliere stampe dalla collezione: stessi documenti di Android, provati contro un Firestore finto
 - [ ] Eliminazione dell'account dall'app (obbligatoria per Apple)
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)

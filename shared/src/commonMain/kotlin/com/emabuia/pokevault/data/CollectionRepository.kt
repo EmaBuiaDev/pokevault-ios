@@ -6,6 +6,9 @@ import com.emabuia.pokevault.firebase.FirestoreApi
 import io.ktor.utils.io.CancellationException
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /** I totali in cima alla collezione: CollectionStats di FirestoreRepository su Android. */
 data class CollectionStats(
@@ -18,11 +21,11 @@ data class CollectionStats(
 class NotSignedInException : Exception("Nessun accesso")
 
 /**
- * La collezione dell'utente, in sola lettura.
+ * La collezione dell'utente: la lettura. Le scritture stanno in [CollectionWriter].
  *
  * L'app Android, leggendo, corregge anche vecchi codici espansione e prezzi
- * mancanti scrivendo su Firestore (CollectionViewModel). Qui no: finche' le
- * scritture non hanno i loro test, l'app iOS la collezione la guarda soltanto.
+ * mancanti scrivendo su Firestore (CollectionViewModel). Qui no: leggere non
+ * scrive mai niente.
  */
 class CollectionRepository(
     private val firestore: FirestoreApi,
@@ -37,6 +40,15 @@ class CollectionRepository(
     var unreadable: Int = 0
         private set
     private val serializer = ListSerializer(PokemonCard.serializer())
+
+    // Cresce a ogni scrittura: chi mostra la collezione lo osserva e ricarica
+    // (su Android ci pensa lo snapshot listener di Firestore).
+    private val _changes = MutableStateFlow(0)
+    val changes: StateFlow<Int> = _changes.asStateFlow()
+
+    fun notifyChanged() {
+        _changes.value += 1
+    }
 
     /** L'ultima collezione scaricata per questo account, per mostrarla subito. */
     fun cached(uid: String): List<PokemonCard>? = cache.read(key(uid), serializer)?.data?.owned()

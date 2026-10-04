@@ -28,6 +28,16 @@ object AppLocale {
     val wishlistIconDeck: String get() = "Per il deck"
     val wishlistIconSet: String get() = "Completa set"
 
+    val printLabel: String get() = "Stampa"
+    val quantity: String get() = "Quantità"
+    val condition: String get() = "Condizione"
+    val languageLabel: String get() = "Lingua"
+    val addToCollection: String get() = "Aggiungi alla collezione"
+    val addCopy: String get() = "Aggiungi copia"
+    fun addCopies(quantity: Int): String = "Aggiungi $quantity copie"
+    val removeFromCollection: String get() = "Rimuovi"
+    val alreadyOwnedPrint: String get() = "Già in collezione"
+
     val search: String get() = "Cerca..."
     val searchCard: String get() = "Cerca una carta"
     val searchInSets: String get() = "Cerca tra tutte le espansioni..."
@@ -121,7 +131,12 @@ object AppLocale {
         "normal" to "Normale"
     )
 
-    private val typeItToEn = typeEnToIt.entries.associate { (k, v) -> v.lowercase() to k.replaceFirstChar { it.uppercase() } }
+    // Oltre ai nomi della tabella, quelli che il catalogo italiano usa davvero
+    // (contati il 04/10/2026 su /ita/catalog.json): Lampo 1154 carte,
+    // Oscurità 1078, Combattimento 147, Psiche 137. Senza, quelle carte
+    // restavano senza colore del tipo.
+    private val typeItToEn = typeEnToIt.entries.associate { (k, v) -> v.lowercase() to k.replaceFirstChar { it.uppercase() } } +
+        mapOf("lampo" to "Lightning", "oscurità" to "Darkness", "combattimento" to "Fighting", "psiche" to "Psychic")
 
     /** Normalizza un tipo (italiano o inglese) alla versione inglese: serve a TypeColors. */
     fun typeToEnglish(type: String): String {

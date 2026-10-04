@@ -4,11 +4,13 @@ import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.CatalogApi
 import com.emabuia.pokevault.data.CatalogRepository
 import com.emabuia.pokevault.data.CollectionRepository
+import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
+import com.emabuia.pokevault.firebase.FirestoreWrites
 import com.emabuia.pokevault.firebase.GoogleSignIn
 import com.emabuia.pokevault.firebase.platformGoogleAuthLauncher
 import com.emabuia.pokevault.screens.auth.AuthViewModel
@@ -52,6 +54,8 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { GoogleSignIn(get(), platformGoogleAuthLauncher()) }
     single { AuthRepository(get(), get(), get(named(DATA)), now = ::nowMillis) }
     single { CollectionRepository(get(), get(), get(named(CACHE))) }
+    single { FirestoreWrites(get()) }
+    single { CollectionWriter(get(), get(), get()) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE))) }
 }
 
@@ -63,7 +67,16 @@ val viewModelModule = module {
     factoryOf(::StatsViewModel)
     factoryOf(::WishlistViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
-    factory { params -> CardDetailViewModel(expansionId = params.get(0), cardId = params.get(1), catalog = get()) }
+    factory { params ->
+        CardDetailViewModel(
+            expansionId = params.get(0),
+            cardId = params.get(1),
+            catalog = get(),
+            auth = get(),
+            collection = get(),
+            writer = get(),
+        )
+    }
 }
 
 /**

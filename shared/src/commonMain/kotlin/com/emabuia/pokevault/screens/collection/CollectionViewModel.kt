@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.CollectionRepository
 import com.emabuia.pokevault.data.CollectionStats
+import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.model.PokemonCard
 import com.emabuia.pokevault.util.AppLocale
 import com.emabuia.pokevault.util.CollectionBrowser
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -30,6 +32,7 @@ data class CollectionUiState(
 class CollectionViewModel(
     private val repository: CollectionRepository,
     private val auth: AuthRepository,
+    private val writer: CollectionWriter,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CollectionUiState())
     val state: StateFlow<CollectionUiState> = _state.asStateFlow()
@@ -39,6 +42,25 @@ class CollectionViewModel(
             // Prima la copia sul telefono, cosi' la collezione compare subito.
             auth.session.value?.uid?.let { uid -> repository.cached(uid)?.let { show(it, stillLoading = true) } }
             load()
+        }
+        // Dopo ogni scrittura, da qui o dal dettaglio carta, si rilegge.
+        viewModelScope.launch { repository.changes.drop(1).collect { load() } }
+    }
+
+
+    /** Le copie di una stampa: a zero la stampa si toglie. */
+    fun setQuantity(print: PokemonCard, quantity: Int) = write { writer.setQuantity(print, quantity) }
+
+    fun deletePrint(print: PokemonCard) = write { writer.deletePrint(print) }
+
+    private fun write(block: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                _state.value = _state.value.copy(errorMessage = "Non salvato: ${e.message}")
+            }
         }
     }
 

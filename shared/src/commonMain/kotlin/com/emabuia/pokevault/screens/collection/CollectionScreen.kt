@@ -29,7 +29,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -57,11 +61,14 @@ import com.emabuia.pokevault.data.CollectionStats
 import com.emabuia.pokevault.data.Session
 import com.emabuia.pokevault.data.model.PokemonCard
 import com.emabuia.pokevault.ui.components.CardImageSkeleton
+import com.emabuia.pokevault.ui.components.CardVariants
 import com.emabuia.pokevault.ui.components.OwnedVariantBadges
+import com.emabuia.pokevault.ui.components.QuantityStepper
 import com.emabuia.pokevault.ui.components.RarityMarkWithLabel
 import com.emabuia.pokevault.ui.components.formatEur
 import com.emabuia.pokevault.ui.components.holoFoil
 import com.emabuia.pokevault.ui.theme.AppColors
+import com.emabuia.pokevault.util.AppLocale
 import com.emabuia.pokevault.util.CardGroup
 import com.emabuia.pokevault.util.ImageUrlUtils
 import com.emabuia.pokevault.util.RarityUtils
@@ -70,14 +77,17 @@ import org.koin.compose.viewmodel.koinViewModel
 private const val COLUMNS = 3
 
 /**
- * La collezione, in sola lettura: totali, carte divise per espansione, e il
- * dettaglio di una carta al tocco. Aggiungere e togliere carte arriva dopo.
+ * La collezione: totali, carte divise per espansione, e al tocco le stampe
+ * possedute, con le copie da cambiare e il cestino. Si aggiunge dal Pokedex.
  */
 @Composable
 fun CollectionScreen(session: Session, onLogout: () -> Unit) {
     val viewModel = koinViewModel<CollectionViewModel>(key = session.uid)
     val state by viewModel.state.collectAsStateWithLifecycle()
-    var selected by remember { mutableStateOf<CardGroup?>(null) }
+    // La chiave e non il gruppo: dopo una modifica la collezione si ricarica e
+    // la finestra deve mostrare i numeri nuovi (e chiudersi se la carta non c'e' piu').
+    var selectedKey by remember { mutableStateOf<String?>(null) }
+    val selected = selectedKey?.let { key -> state.sections.firstNotNullOfOrNull { s -> s.groups.firstOrNull { it.key == key } } }
 
     Column(
         modifier = Modifier
@@ -105,7 +115,7 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit) {
 
         if (!state.isLoading && state.sections.isEmpty() && state.errorMessage == null) {
             Text(
-                "La collezione e' vuota: le carte che aggiungi dall'app Android compaiono qui.",
+                "La collezione e' vuota: apri una carta dal Pokédex e aggiungila. Quelle aggiunte dall'app Android compaiono qui.",
                 color = AppColors.textSecondary,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center,
@@ -147,14 +157,21 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit) {
                         card = group.representative,
                         gridColumns = COLUMNS,
                         ownedVariants = group.variants,
-                        onClick = { selected = group },
+                        onClick = { selectedKey = group.key },
                     )
                 }
             }
         }
     }
 
-    selected?.let { group -> CardGroupDialog(group, onDismiss = { selected = null }) }
+    selected?.let { group ->
+        CardGroupDialog(
+            group = group,
+            onQuantity = viewModel::setQuantity,
+            onDelete = viewModel::deletePrint,
+            onDismiss = { selectedKey = null },
+        )
+    }
 }
 
 /** SummaryStrip dell'app Android, senza la riga dei filtri (qui non ci sono ancora). */
@@ -295,8 +312,15 @@ private fun CollectionCardImageFallback(card: PokemonCard, compact: Boolean) {
 
 /** Una carta con le sue stampe: quante copie, di che lingua, quanto valgono. */
 @Composable
-private fun CardGroupDialog(group: CardGroup, onDismiss: () -> Unit) {
+private fun CardGroupDialog(
+    group: CardGroup,
+    onQuantity: (PokemonCard, Int) -> Unit,
+    onDelete: (PokemonCard) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val card = group.representative
+    // Il cestino chiede conferma con un secondo tocco: si toccano dati veri.
+    var pendingDelete by remember { mutableStateOf<String?>(null) }
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(16.dp), color = AppColors.surface) {
             Column(
@@ -321,16 +345,46 @@ private fun CardGroupDialog(group: CardGroup, onDismiss: () -> Unit) {
                 if (!rarity.isUnknown) RarityMarkWithLabel(rarity, fontSize = 13, modifier = Modifier.padding(top = 4.dp))
                 Spacer(Modifier.height(12.dp))
                 group.cards.forEach { print ->
-                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
-                        Text(
-                            listOf(print.variant, print.language, print.condition).filter { it.isNotBlank() }.joinToString(" · "),
-                            color = AppColors.textPrimary,
-                            fontSize = 13.sp,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text("x${print.quantity}", color = AppColors.blue, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        if (print.estimatedValue > 0) {
-                            Text("  ${formatEur(print.estimatedValue)}", color = AppColors.green, fontSize = 13.sp)
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(AppColors.card)
+                            .padding(10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                listOf(CardVariants.label(print.variant), print.language, print.condition)
+                                    .filter { it.isNotBlank() }.joinToString(" · "),
+                                color = AppColors.textPrimary,
+                                fontSize = 13.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (print.estimatedValue > 0) {
+                                Text(formatEur(print.estimatedValue), color = AppColors.green, fontSize = 13.sp)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f)) {
+                                // A una copia il meno si ferma: per togliere la stampa c'e' il cestino.
+                                QuantityStepper(
+                                    quantity = print.quantity,
+                                    onDecrease = { if (print.quantity > 1) onQuantity(print, print.quantity - 1) },
+                                    onIncrease = { onQuantity(print, print.quantity + 1) },
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            if (pendingDelete == print.id) {
+                                TextButton(onClick = { pendingDelete = null; onDelete(print) }) {
+                                    Text("Togli?", color = AppColors.red, fontWeight = FontWeight.Bold)
+                                }
+                            } else {
+                                IconButton(onClick = { pendingDelete = print.id }) {
+                                    Icon(Icons.Default.Delete, contentDescription = AppLocale.removeFromCollection, tint = AppColors.red)
+                                }
+                            }
                         }
                     }
                 }
