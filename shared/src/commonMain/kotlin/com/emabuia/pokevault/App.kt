@@ -27,6 +27,7 @@ import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
+import com.emabuia.pokevault.screens.settings.SettingsScreen
 import com.emabuia.pokevault.screens.stats.StatsScreen
 import com.emabuia.pokevault.screens.wishlist.WishlistScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
@@ -34,6 +35,11 @@ import com.emabuia.pokevault.ui.navigation.BottomTab
 import com.emabuia.pokevault.ui.navigation.PokeVaultBottomBar
 import com.emabuia.pokevault.ui.theme.AppColors
 import com.emabuia.pokevault.ui.theme.PokeVaultTheme
+import com.emabuia.pokevault.ui.theme.ThemeMode
+import com.emabuia.pokevault.ui.theme.ThemePreference
+import org.koin.compose.koinInject
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -57,6 +63,9 @@ data class CardDetailDestination(val expansionId: String, val cardId: String)
 @Serializable
 object WishlistDestination
 
+@Serializable
+object SettingsDestination
+
 /** Una sezione dell'app Android che su iOS non c'e' ancora. */
 @Serializable
 data class ComingSoonDestination(val title: String)
@@ -73,7 +82,15 @@ private const val NOT_PORTED_YET = "Questa sezione c'e' sull'app Android e arriv
 
 @Composable
 fun App() {
-    PokeVaultTheme {
+    val themeMode by koinInject<ThemePreference>().mode.collectAsState()
+    val systemDark = isSystemInDarkTheme()
+    PokeVaultTheme(
+        darkTheme = when (themeMode) {
+            ThemeMode.LIGHT -> false
+            ThemeMode.DARK -> true
+            ThemeMode.SYSTEM -> systemDark
+        },
+    ) {
         Surface(color = AppColors.background) {
             val navController: NavHostController = rememberNavController()
             val backStackEntry by navController.currentBackStackEntryAsState()
@@ -101,6 +118,7 @@ fun App() {
                                 },
                                 onExpansionClick = openExpansion,
                                 onSearchClick = { navController.selectTab(BottomTab.POKEDEX) },
+                                onSettingsClick = { navController.navigate(SettingsDestination) },
                             )
                         }
                         composable<CollectionDestination> {
@@ -139,6 +157,9 @@ fun App() {
                                     navController.navigate(CardDetailDestination(expansionId, cardId))
                                 },
                             )
+                        }
+                        composable<SettingsDestination> {
+                            SettingsScreen(onBack = { navController.popBackStack() })
                         }
                         composable<WishlistDestination> {
                             RequireLogin { _, _ ->

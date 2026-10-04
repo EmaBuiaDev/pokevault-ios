@@ -4,6 +4,7 @@ import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.CatalogApi
 import com.emabuia.pokevault.data.CatalogRepository
 import com.emabuia.pokevault.data.CollectionRepository
+import com.emabuia.pokevault.data.AccountDeleter
 import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.WishlistRepository
@@ -19,8 +20,10 @@ import com.emabuia.pokevault.screens.cards.ExpansionCardsViewModel
 import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
 import com.emabuia.pokevault.screens.expansions.SearchViewModel
+import com.emabuia.pokevault.screens.settings.SettingsViewModel
 import com.emabuia.pokevault.screens.stats.StatsViewModel
 import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
+import com.emabuia.pokevault.ui.theme.ThemePreference
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -56,6 +59,8 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { CollectionRepository(get(), get(), get(named(CACHE))) }
     single { FirestoreWrites(get()) }
     single { CollectionWriter(get(), get(), get()) }
+    single { ThemePreference(get(named(DATA))) }
+    single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE))) }
 }
 
@@ -66,6 +71,7 @@ val viewModelModule = module {
     factoryOf(::CollectionViewModel)
     factoryOf(::StatsViewModel)
     factoryOf(::WishlistViewModel)
+    factoryOf(::SettingsViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(

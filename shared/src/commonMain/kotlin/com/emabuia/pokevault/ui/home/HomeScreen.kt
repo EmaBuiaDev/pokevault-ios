@@ -3,6 +3,7 @@ package com.emabuia.pokevault.ui.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -20,6 +21,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +47,7 @@ import com.emabuia.pokevault.ui.components.pressScale
 import com.emabuia.pokevault.ui.home.components.MenuGrid
 import com.emabuia.pokevault.ui.home.components.HomeSearchEntry
 import com.emabuia.pokevault.ui.theme.AppColors
+import com.emabuia.pokevault.util.AppLocale
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -57,6 +63,7 @@ fun HomeScreen(
     onMenuClick: (routeKey: String) -> Unit,
     onExpansionClick: (Expansion) -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit,
 ) {
     val viewModel = koinViewModel<ExpansionsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -70,9 +77,15 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState())
     ) {
         Spacer(Modifier.height(16.dp))
-        Column(Modifier.padding(horizontal = 20.dp)) {
+        Row(Modifier.padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
             Text("Ciao, ${session?.name ?: "Allenatore"}!", color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("Gestisci la tua collezione con stile ✨", color = AppColors.textSecondary, fontSize = 14.sp)
+            }
+            // Come su Android: le impostazioni dall'ingranaggio accanto al saluto.
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Default.Settings, contentDescription = AppLocale.settingsTitle, tint = AppColors.textSecondary)
+            }
         }
         Spacer(Modifier.height(16.dp))
         // Come su Android: la ricerca su tutto il catalogo e' il primo gesto, e

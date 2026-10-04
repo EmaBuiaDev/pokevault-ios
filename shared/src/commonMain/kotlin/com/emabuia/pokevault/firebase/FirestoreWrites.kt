@@ -115,6 +115,23 @@ class FirestoreWrites(
         commit(idToken, buildJsonObject { put("delete", cardPath(uid, cardId)) })
     }
 
+    /**
+     * Cancella documenti di users/{uid}/{collection} per id, a blocchi: un
+     * commit ne regge fino a 500, qui 400 per stare larghi.
+     */
+    suspend fun deleteDocuments(uid: String, idToken: String, collection: String, ids: List<String>) {
+        ids.chunked(400).forEach { chunk ->
+            commitAll(idToken, chunk.map { id ->
+                buildJsonObject { put("delete", "$database/documents/users/$uid/$collection/$id") }
+            })
+        }
+    }
+
+    /** Il profilo users/{uid}: l'ultimo documento, dopo le sottocartelle. */
+    suspend fun deleteUserDocument(uid: String, idToken: String) {
+        commit(idToken, buildJsonObject { put("delete", userPath(uid)) })
+    }
+
     /** FieldValue.increment su totalCards e totalValue di users/{uid}. */
     suspend fun incrementTotals(uid: String, idToken: String, cards: Long, value: Double) {
         if (cards == 0L && value == 0.0) return
@@ -137,8 +154,10 @@ class FirestoreWrites(
         })
     }
 
-    private suspend fun commit(idToken: String, write: JsonObject) {
-        val body = buildJsonObject { putJsonArray("writes") { add(write) } }
+    private suspend fun commit(idToken: String, write: JsonObject) = commitAll(idToken, listOf(write))
+
+    private suspend fun commitAll(idToken: String, writes: List<JsonObject>) {
+        val body = buildJsonObject { put("writes", JsonArray(writes)) }
         val response = client.post("$api:commit") {
             expectSuccess = false
             bearerAuth(idToken)

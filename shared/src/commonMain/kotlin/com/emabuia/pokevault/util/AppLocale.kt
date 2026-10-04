@@ -16,6 +16,48 @@ object AppLocale {
     val other: String get() = "Altro"
     val unknownError: String get() = "Errore sconosciuto"
     val back: String get() = "Indietro"
+    val cancel: String get() = "Annulla"
+
+    // Impostazioni: gli stessi testi dell'app Android.
+    val settingsTitle: String get() = "Impostazioni"
+    val themeLabel: String get() = "Tema"
+    fun themeSubtitle(mode: String): String = when (mode) {
+        "light" -> "Chiaro"
+        "dark" -> "Scuro"
+        else -> "Sistema"
+    }
+    val privacyPolicyLabel: String get() = "Informativa Privacy"
+    val privacyPolicySubtitle: String get() = "Come gestiamo i tuoi dati"
+    val privacyPolicyUrl: String get() = "https://emabuiadev.github.io/pokevault/privacy-policy"
+    val termsLabel: String get() = "Termini di Servizio"
+    val termsSubtitle: String get() = "Condizioni d'uso dell'app"
+    val termsUrl: String get() = "https://emabuiadev.github.io/pokevault/terms"
+    val tikTokLabel: String get() = "Seguici su TikTok"
+    val tikTokSubtitle: String get() = "Se vuoi essere aggiornato nel mondo Pokemon, seguici su @pokevault94"
+    val tikTokUrl: String get() = "https://www.tiktok.com/@pokevault94"
+    val logoutLabel: String get() = "Esci"
+    val logoutSubtitle: String get() = "Disconnettiti dal tuo account"
+    val dangerZone: String get() = "Zona Pericolosa"
+    val deleteAccountButton: String get() = "Elimina Account"
+    val deleteAccountTitle: String get() = "Eliminare l'account?"
+    val deleteAccountMessage: String get() =
+        "Questa azione è irreversibile. Tutti i tuoi dati verranno eliminati definitivamente:\n\n" +
+            "• Profilo utente\n• Collezione di carte\n• Mazzi salvati\n• Carte graduate\n\n" +
+            "Sei sicuro di voler procedere?"
+    val deleteAccountConfirm: String get() = "Elimina definitivamente"
+    val deletingAccount: String get() = "Eliminazione in corso..."
+    val disclaimerTitle: String get() = "Disclaimer"
+    val disclaimerBody: String get() =
+        "Pokémon, Pokémon TCG e tutti i nomi, le immagini e i marchi correlati sono " +
+            "proprietà di Nintendo, The Pokémon Company e The Pokémon Company International. " +
+            "Questa app non è affiliata, sponsorizzata o approvata da Nintendo, " +
+            "The Pokémon Company o The Pokémon Company International.\n\n" +
+            "Prezzi di mercato e catalogo carte in altre lingue sono recuperati da Pokewallet.io (api.pokewallet.io) " +
+            "tramite i nostri server, mai direttamente dal tuo dispositivo. Sono utilizzati esclusivamente a scopo " +
+            "informativo e di gestione della collezione personale. Per segnalazioni relative al copyright: " +
+            "emabuiadev.github.io/pokevault/copyright\n\n" +
+            "Tutti gli altri marchi appartengono ai rispettivi proprietari."
+
     val wishlistTitle: String get() = "Wishlist"
     val wishlistIconPokeBall: String get() = "Da prendere"
     val wishlistIconGreatBall: String get() = "Priorità"

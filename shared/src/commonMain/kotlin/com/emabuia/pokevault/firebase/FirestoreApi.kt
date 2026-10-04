@@ -80,7 +80,7 @@ class FirestoreApi(
      * Tutti i documenti di users/{uid}/{collection}, pagina per pagina, come
      * JSON semplice (vedi [firestoreFieldsToJson]) con l'id del documento.
      */
-    private suspend fun listDocuments(uid: String, idToken: String, collection: String): List<Pair<String, JsonObject>> {
+    suspend fun listDocuments(uid: String, idToken: String, collection: String): List<Pair<String, JsonObject>> {
         val result = mutableListOf<Pair<String, JsonObject>>()
         var pageToken: String? = null
         do {

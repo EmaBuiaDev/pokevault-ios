@@ -14,6 +14,7 @@ import io.ktor.http.parameters
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -76,6 +77,18 @@ class FirebaseAuthApi(
         accounts<Unit>("sendOobCode", """{"requestType":"PASSWORD_RESET","email":${quote(email)}}""", decode = false)
     }
 
+    /** Con che cosa e' entrato l'utente ("password", "google.com"): serve a chiedergli la conferma giusta. */
+    suspend fun providers(idToken: String): List<String> {
+        val text = accountsRaw("lookup", """{"idToken":${quote(idToken)}}""")
+        val user = json.parseToJsonElement(text).jsonObject["users"]?.jsonArray?.firstOrNull()?.jsonObject ?: return emptyList()
+        return user["providerUserInfo"]?.jsonArray.orEmpty().mapNotNull { it.jsonObject["providerId"]?.jsonPrimitive?.content }
+    }
+
+    /** Cancella l'account (user.delete() su Android). Vuole un accesso recente. */
+    suspend fun deleteAccount(idToken: String) {
+        accountsRaw("delete", """{"idToken":${quote(idToken)}}""")
+    }
+
     /** Un id token nuovo dal refresh token: quello vecchio scade dopo un'ora. */
     suspend fun refresh(refreshToken: String): AuthTokens {
         val response = client.submitForm(
@@ -93,6 +106,15 @@ class FirebaseAuthApi(
             refreshToken = refreshed.refreshToken,
             expiresIn = refreshed.expiresIn,
         )
+    }
+
+    private suspend fun accountsRaw(method: String, body: String): String {
+        val response = client.post("https://identitytoolkit.googleapis.com/v1/accounts:$method?key=$apiKey") {
+            expectSuccess = false
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        return checked(response)
     }
 
     private suspend inline fun <reified T> accounts(method: String, body: String, decode: Boolean = true): T {
