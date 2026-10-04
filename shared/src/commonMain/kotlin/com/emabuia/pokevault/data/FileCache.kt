@@ -54,5 +54,9 @@ class FileCache(
 
     fun ageMillis(cached: Cached<*>): Long = now() - cached.savedAt
 
+    fun remove(key: String) {
+        runCatching { SystemFileSystem.delete(pathOf(key), mustExist = false) }
+    }
+
     private fun pathOf(key: String) = Path(directory, "${key.filter { it.isLetterOrDigit() || it == '_' || it == '-' }}.json")
 }

@@ -17,6 +17,14 @@ jobs:
           distribution: zulu
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
+      - name: Configurazione Firebase dal segreto
+        env:
+          FIREBASE_IOS_PLIST: ${{ secrets.FIREBASE_IOS_PLIST }}
+        run: |
+          if [ -n "$FIREBASE_IOS_PLIST" ]; then
+            echo "$FIREBASE_IOS_PLIST" | base64 -d > "$RUNNER_TEMP/GoogleService-Info.plist"
+            echo "FIREBASE_IOS_PLIST_PATH=$RUNNER_TEMP/GoogleService-Info.plist" >> "$GITHUB_ENV"
+          fi
       - name: Test e APK debug
         run: ./gradlew :shared:jvmTest :androidApp:assembleDebug :desktopApp:compileKotlin
 
@@ -35,6 +43,15 @@ jobs:
         with:
           path: ~/.konan
           key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      # Senza il segreto (per esempio da un fork) l'app compila lo stesso, col login spento.
+      - name: Configurazione Firebase dal segreto
+        env:
+          FIREBASE_IOS_PLIST: ${{ secrets.FIREBASE_IOS_PLIST }}
+        run: |
+          if [ -n "$FIREBASE_IOS_PLIST" ]; then
+            echo "$FIREBASE_IOS_PLIST" | base64 --decode > "$RUNNER_TEMP/GoogleService-Info.plist"
+            echo "FIREBASE_IOS_PLIST_PATH=$RUNNER_TEMP/GoogleService-Info.plist" >> "$GITHUB_ENV"
+          fi
       - name: Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
       - name: Build per il simulatore

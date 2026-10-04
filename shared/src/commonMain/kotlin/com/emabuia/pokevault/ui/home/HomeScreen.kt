@@ -36,6 +36,7 @@ import coil3.compose.AsyncImage
 import com.emabuia.pokevault.data.Expansion
 import com.emabuia.pokevault.data.ExpansionsState
 import com.emabuia.pokevault.data.WORKER_BASE_URL
+import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
 import com.emabuia.pokevault.ui.components.pressScale
 import com.emabuia.pokevault.ui.home.components.MenuGrid
@@ -57,6 +58,7 @@ fun HomeScreen(
 ) {
     val viewModel = koinViewModel<ExpansionsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val session by koinViewModel<AuthViewModel>().session.collectAsStateWithLifecycle()
 
     Column(
         modifier = Modifier
@@ -67,7 +69,7 @@ fun HomeScreen(
     ) {
         Spacer(Modifier.height(16.dp))
         Column(Modifier.padding(horizontal = 20.dp)) {
-            Text("Ciao, Allenatore!", color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+            Text("Ciao, ${session?.name ?: "Allenatore"}!", color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("Gestisci la tua collezione con stile ✨", color = AppColors.textSecondary, fontSize = 14.sp)
         }
         Spacer(Modifier.height(20.dp))

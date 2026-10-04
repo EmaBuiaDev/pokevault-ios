@@ -19,6 +19,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.emabuia.pokevault.data.Expansion
 import com.emabuia.pokevault.screens.ComingSoonScreen
+import com.emabuia.pokevault.screens.auth.RequireLogin
+import com.emabuia.pokevault.screens.auth.SignedInScreen
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
@@ -55,7 +57,8 @@ private val BottomTab.destination: Any
         BottomTab.STATS -> StatsDestination
     }
 
-private const val NEEDS_LOGIN = "Arriva con il login: la collezione vive nel tuo account, come sull'app Android."
+private const val COLLECTION_NEXT = "Sei dentro! La tua collezione arriva con il prossimo aggiornamento: e' la stessa dell'app Android, nello stesso account."
+private const val STATS_NEXT = "Le statistiche arrivano insieme alla collezione."
 private const val NOT_PORTED_YET = "Questa sezione c'e' sull'app Android e arrivera' presto anche qui."
 
 @Composable
@@ -89,13 +92,27 @@ fun App() {
                             )
                         }
                         composable<CollectionDestination> {
-                            ComingSoonScreen("Le mie carte", NEEDS_LOGIN)
+                            RequireLogin { session, onLogout ->
+                                SignedInScreen(
+                                    title = "Le mie carte",
+                                    session = session,
+                                    message = COLLECTION_NEXT,
+                                    onLogout = onLogout,
+                                )
+                            }
                         }
                         composable<PokedexDestination> {
                             ExpansionsScreen(navigateToCards = openExpansion)
                         }
                         composable<StatsDestination> {
-                            ComingSoonScreen("Statistiche", NEEDS_LOGIN)
+                            RequireLogin { session, onLogout ->
+                                SignedInScreen(
+                                    title = "Statistiche",
+                                    session = session,
+                                    message = STATS_NEXT,
+                                    onLogout = onLogout,
+                                )
+                            }
                         }
                         composable<ExpansionCardsDestination> { entry ->
                             val destination = entry.toRoute<ExpansionCardsDestination>()

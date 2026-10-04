@@ -6,6 +6,9 @@ import com.emabuia.pokevault.di.initKoin
 class PokeVaultApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        initKoin(java.io.File(cacheDir, "catalog").absolutePath)
+        initKoin(
+            cacheDir = java.io.File(cacheDir, "catalog").absolutePath,
+            dataDir = java.io.File(filesDir, "data").absolutePath,
+        )
     }
 }
