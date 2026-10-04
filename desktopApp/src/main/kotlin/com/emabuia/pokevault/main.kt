@@ -5,7 +5,7 @@ import androidx.compose.ui.window.application
 import com.emabuia.pokevault.di.initKoin
 
 fun main() {
-    initKoin()
+    initKoin(java.io.File(System.getProperty("user.home"), ".pokevault-kmp/cache").absolutePath)
 
     application {
         Window(

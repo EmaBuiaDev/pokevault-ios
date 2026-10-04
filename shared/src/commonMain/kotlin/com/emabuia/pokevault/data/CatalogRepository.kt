@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 
 sealed interface ExpansionsState {
     data object Loading : ExpansionsState
@@ -23,14 +26,24 @@ data class ExpansionCards(
     fun priceOf(card: Card): PriceEntry? = card.number?.let { prices[it] }
 }
 
-class CatalogRepository(private val api: CatalogApi) {
+/**
+ * Catalogo: rete, poi memoria per la sessione, poi disco per i riavvii.
+ *
+ * Il disco serve a due cose: aprire l'app senza aspettare la rete, e
+ * mostrare quello che si e' gia' visto quando la rete non c'e'. Per questo un
+ * errore di rete con qualcosa su disco non e' mai un errore a schermo.
+ */
+class CatalogRepository(
+    private val api: CatalogApi,
+    private val cache: FileCache? = null,
+) {
     private val _expansions = MutableStateFlow<ExpansionsState>(ExpansionsState.Loading)
     val expansions: StateFlow<ExpansionsState> = _expansions.asStateFlow()
 
     private val expansionsMutex = Mutex()
 
-    // Solo in memoria, per la sessione: come getExpansionCards() su Android.
-    private val cardsCache = mutableMapOf<String, ExpansionCards>()
+    // In memoria per la sessione, come getExpansionCards() su Android.
+    private val cardsMemory = mutableMapOf<String, ExpansionCards>()
 
     /** Home e Pokedex chiedono lo stesso elenco: lo scarica solo il primo. */
     suspend fun ensureExpansions() = expansionsMutex.withLock {
@@ -38,24 +51,34 @@ class CatalogRepository(private val api: CatalogApi) {
     }
 
     suspend fun refresh() {
-        _expansions.value = ExpansionsState.Loading
-        _expansions.value = try {
-            // Dalla piu' recente, come l'elenco dell'app Android.
-            ExpansionsState.Ready(api.getExpansions().sortedByDescending { it.releaseDate.orEmpty() })
+        if (_expansions.value !is ExpansionsState.Ready) {
+            // Quello su disco subito, poi la rete lo aggiorna.
+            _expansions.value = cache?.read(KEY_EXPANSIONS, EXPANSIONS)
+                ?.let { ExpansionsState.Ready(newestFirst(it.data)) }
+                ?: ExpansionsState.Loading
+        }
+        try {
+            val fresh = api.getExpansions()
+            cache?.write(KEY_EXPANSIONS, EXPANSIONS, fresh)
+            _expansions.value = ExpansionsState.Ready(newestFirst(fresh))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            ExpansionsState.Error(e.message ?: e::class.simpleName.orEmpty())
+            if (_expansions.value !is ExpansionsState.Ready) {
+                _expansions.value = ExpansionsState.Error(e.message ?: e::class.simpleName.orEmpty())
+            }
         }
     }
 
     suspend fun expansionCards(expansionId: String): ExpansionCards {
-        cardsCache[expansionId]?.let { return it }
+        cardsMemory[expansionId]?.let { return it }
         val loaded = coroutineScope {
-            val cards = async { api.getExpansionCards(expansionId) }
+            val cards = async {
+                cachedOrFetch("cards_$expansionId", CARDS, CARDS_TTL_MS) { api.getExpansionCards(expansionId) }
+            }
             // Senza prezzi le carte si mostrano lo stesso: non e' un errore della schermata.
             val prices = async {
                 try {
-                    api.getExpansionPrices(expansionId)
+                    cachedOrFetch("prices_$expansionId", PRICES, PRICES_TTL_MS) { api.getExpansionPrices(expansionId) }
                 } catch (e: Exception) {
                     if (e is CancellationException) throw e
                     emptyMap()
@@ -63,7 +86,43 @@ class CatalogRepository(private val api: CatalogApi) {
             }
             ExpansionCards(cards.await().sortedWith(Card.byNumber), prices.await())
         }
-        cardsCache[expansionId] = loaded
+        cardsMemory[expansionId] = loaded
         return loaded
+    }
+
+    /**
+     * Il dato su disco se e' abbastanza recente; altrimenti la rete, e se la
+     * rete non risponde il dato su disco comunque vecchio. Solo senza niente su
+     * disco l'errore di rete arriva al chiamante.
+     */
+    private suspend fun <T> cachedOrFetch(
+        key: String,
+        serializer: kotlinx.serialization.KSerializer<T>,
+        ttlMs: Long,
+        fetch: suspend () -> T,
+    ): T {
+        val cached = cache?.read(key, serializer)
+        if (cached != null && cache.ageMillis(cached) < ttlMs) return cached.data
+        return try {
+            fetch().also { cache?.write(key, serializer, it) }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            cached?.data ?: throw e
+        }
+    }
+
+    private fun newestFirst(expansions: List<Expansion>) =
+        // Dalla piu' recente, come l'elenco dell'app Android.
+        expansions.sortedByDescending { it.releaseDate.orEmpty() }
+
+    companion object {
+        private const val KEY_EXPANSIONS = "expansions"
+        private val EXPANSIONS = ListSerializer(Expansion.serializer())
+        private val CARDS = ListSerializer(Card.serializer())
+        private val PRICES = MapSerializer(String.serializer(), PriceEntry.serializer())
+
+        // Le carte di un set cambiano di rado; i prezzi 12 ore come l'app Android.
+        private const val CARDS_TTL_MS = 24L * 60 * 60 * 1000
+        private const val PRICES_TTL_MS = 12L * 60 * 60 * 1000
     }
 }

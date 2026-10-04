@@ -43,7 +43,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 ### Fase 2: il catalogo (gratis)
 - [x] Carte di un'espansione (`/v1/expansions/{id}/cards`) e immagini `/images/it/...`
 - [x] Prezzi (`/ita/prices/{code}.json`), mostrando sempre il minimo (`low`) come su Android
-- [ ] Cache locale: Room KMP o multiplatform-settings al posto delle SharedPreferences
+- [x] Cache locale su file (kotlinx-io): espansioni subito all'avvio, carte 24h, prezzi 12h, offline con quello gia' visto
 - [x] Tema, colori, simboli di rarita' e bottom bar presi dall'app Android; Home con MenuGrid
 
 ### Fase 3: account e collezione

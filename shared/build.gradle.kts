@@ -48,6 +48,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -65,6 +66,7 @@ kotlin {
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.kotlinx.io.core)
 
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)
