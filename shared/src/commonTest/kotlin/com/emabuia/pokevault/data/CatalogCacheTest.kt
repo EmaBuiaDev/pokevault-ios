@@ -39,6 +39,15 @@ class CatalogCacheTest {
             return listOf(Card(cardId = "ME05_IT_002.webp", nome = "Grubbin"), Card(cardId = "ME05_IT_001.webp", nome = "Tropius"))
         }
         override suspend fun getExpansionPrices(expansionId: String) = mapOf("1" to PriceEntry(low = 0.02))
+        var catalogCalls = 0
+        override suspend fun getFullCatalog(): List<Card> {
+            check(); catalogCalls++
+            return listOf(
+                Card(cardId = "SV03_IT_125.png", espansioneId = "sv03", nome = "Charizard-ex"),
+                Card(cardId = "ME05_IT_004.webp", espansioneId = "me05", nome = "Lurantis-ex"),
+                Card(cardId = "SVP_IT_1.png", espansioneId = "svp", nome = "Pokémon Center"),
+            )
+        }
     }
 
     @Test
@@ -101,5 +110,18 @@ class CatalogCacheTest {
         api.online = false
         val stale = CatalogRepository(api, cache()).expansionCards("me05")
         assertEquals(2, stale.cards.size)
+    }
+
+    @Test
+    fun theFullCatalogIsDownloadedOnceAndSearchWorksOffline() = runTest {
+        val api = FakeApi()
+        val repository = CatalogRepository(api, cache())
+        assertEquals(listOf("Charizard-ex"), repository.search("chariz").map { it.nome })
+        assertEquals(listOf("Lurantis-ex"), repository.search("lurantis").map { it.nome })
+        assertEquals(1, api.catalogCalls)
+
+        // Riavvio senza rete: il catalogo e' sul telefono.
+        api.online = false
+        assertEquals(1, CatalogRepository(api, cache()).search("pokemon").size)
     }
 }

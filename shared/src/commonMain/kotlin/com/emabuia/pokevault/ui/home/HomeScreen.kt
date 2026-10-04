@@ -40,6 +40,7 @@ import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
 import com.emabuia.pokevault.ui.components.pressScale
 import com.emabuia.pokevault.ui.home.components.MenuGrid
+import com.emabuia.pokevault.ui.home.components.HomeSearchEntry
 import com.emabuia.pokevault.ui.theme.AppColors
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -55,6 +56,7 @@ import org.koin.compose.viewmodel.koinViewModel
 fun HomeScreen(
     onMenuClick: (routeKey: String) -> Unit,
     onExpansionClick: (Expansion) -> Unit,
+    onSearchClick: () -> Unit,
 ) {
     val viewModel = koinViewModel<ExpansionsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -72,7 +74,11 @@ fun HomeScreen(
             Text("Ciao, ${session?.name ?: "Allenatore"}!", color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             Text("Gestisci la tua collezione con stile ✨", color = AppColors.textSecondary, fontSize = 14.sp)
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(16.dp))
+        // Come su Android: la ricerca su tutto il catalogo e' il primo gesto, e
+        // qui e' un pulsante che porta al Pokedex, dove c'e' il campo vero.
+        HomeSearchEntry(onClick = onSearchClick)
+        Spacer(Modifier.height(16.dp))
 
         MenuGrid(onItemClick = onMenuClick)
 

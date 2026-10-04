@@ -2,12 +2,14 @@ package com.emabuia.pokevault.data
 
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
@@ -90,6 +92,39 @@ class CatalogRepository(
         return loaded
     }
 
+    // Il catalogo completo in memoria dopo il primo uso: 18.800 carte da
+    // decodificare non si rifanno a ogni lettera digitata.
+    private var fullCatalog: List<Card>? = null
+
+    /**
+     * Le carte che somigliano a [query] in tutto il catalogo (vedi
+     * [CatalogSearch]). Il catalogo si scarica la prima volta e resta sul
+     * telefono un giorno: dopo, la ricerca funziona anche offline.
+     */
+    suspend fun search(query: String): List<Card> = withContext(Dispatchers.Default) {
+        // Tutto fuori dal thread dell'interfaccia: anche la prima lettura dal
+        // telefono e' un JSON di 6 MB da decodificare.
+        CatalogSearch.search(loadFullCatalog(), query)
+    }
+
+    /**
+     * Le carte italiane salvate per id nelle wishlist dell'app Android
+     * ("ita:me05:4": cartella del set e numero). Gli altri id (PokeWallet,
+     * vecchi "sv3-125") qui non si risolvono: servirebbe PokeWallet, col suo
+     * limite orario condiviso. Tornano fuori dalla mappa, e chi chiama li conta.
+     */
+    suspend fun italianCardsById(ids: Collection<String>): Map<String, Card> = withContext(Dispatchers.Default) {
+        val wanted = ids.filter { it.startsWith("ita:") }.toSet()
+        if (wanted.isEmpty()) return@withContext emptyMap()
+        loadFullCatalog().asSequence()
+            .mapNotNull { card -> card.italianId()?.takeIf { it in wanted }?.let { it to card } }
+            .toMap()
+    }
+
+    private suspend fun loadFullCatalog(): List<Card> =
+        fullCatalog ?: cachedOrFetch(KEY_CATALOG, CARDS, CATALOG_TTL_MS) { api.getFullCatalog() }
+            .also { fullCatalog = it }
+
     /**
      * Il dato su disco se e' abbastanza recente; altrimenti la rete, e se la
      * rete non risponde il dato su disco comunque vecchio. Solo senza niente su
@@ -117,6 +152,7 @@ class CatalogRepository(
 
     companion object {
         private const val KEY_EXPANSIONS = "expansions"
+        private const val KEY_CATALOG = "catalog_all"
         private val EXPANSIONS = ListSerializer(Expansion.serializer())
         private val CARDS = ListSerializer(Card.serializer())
         private val PRICES = MapSerializer(String.serializer(), PriceEntry.serializer())
@@ -124,5 +160,6 @@ class CatalogRepository(
         // Le carte di un set cambiano di rado; i prezzi 12 ore come l'app Android.
         private const val CARDS_TTL_MS = 24L * 60 * 60 * 1000
         private const val PRICES_TTL_MS = 12L * 60 * 60 * 1000
+        private const val CATALOG_TTL_MS = 24L * 60 * 60 * 1000
     }
 }

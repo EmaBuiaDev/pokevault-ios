@@ -22,11 +22,13 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.emabuia.pokevault.data.Expansion
 import com.emabuia.pokevault.screens.ComingSoonScreen
+import com.emabuia.pokevault.screens.card.CardDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
 import com.emabuia.pokevault.screens.stats.StatsScreen
+import com.emabuia.pokevault.screens.wishlist.WishlistScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
 import com.emabuia.pokevault.ui.navigation.BottomTab
 import com.emabuia.pokevault.ui.navigation.PokeVaultBottomBar
@@ -48,6 +50,12 @@ object StatsDestination
 
 @Serializable
 data class ExpansionCardsDestination(val expansionId: String, val expansionName: String)
+
+@Serializable
+data class CardDetailDestination(val expansionId: String, val cardId: String)
+
+@Serializable
+object WishlistDestination
 
 /** Una sezione dell'app Android che su iOS non c'e' ancora. */
 @Serializable
@@ -87,10 +95,12 @@ fun App() {
                                         "my_cards" -> navController.selectTab(BottomTab.CARDS)
                                         "statistics" -> navController.selectTab(BottomTab.STATS)
                                         "pokedex" -> navController.selectTab(BottomTab.POKEDEX)
+                                        "wishlist" -> navController.navigate(WishlistDestination)
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
                                 },
                                 onExpansionClick = openExpansion,
+                                onSearchClick = { navController.selectTab(BottomTab.POKEDEX) },
                             )
                         }
                         composable<CollectionDestination> {
@@ -99,7 +109,10 @@ fun App() {
                             }
                         }
                         composable<PokedexDestination> {
-                            ExpansionsScreen(navigateToCards = openExpansion)
+                            ExpansionsScreen(
+                                navigateToCards = openExpansion,
+                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
+                            )
                         }
                         composable<StatsDestination> {
                             RequireLogin { _, _ -> StatsScreen() }
@@ -110,7 +123,30 @@ fun App() {
                                 expansionId = destination.expansionId,
                                 expansionName = destination.expansionName,
                                 navigateBack = { navController.popBackStack() },
+                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
                             )
+                        }
+                        composable<CardDetailDestination> { entry ->
+                            val destination = entry.toRoute<CardDetailDestination>()
+                            CardDetailScreen(
+                                expansionId = destination.expansionId,
+                                cardId = destination.cardId,
+                                onBack = { navController.popBackStack() },
+                                // Le frecce sostituiscono la carta, non la impilano: Indietro
+                                // torna alla griglia, non a ogni carta sfogliata.
+                                onOpenCard = { expansionId, cardId ->
+                                    navController.popBackStack()
+                                    navController.navigate(CardDetailDestination(expansionId, cardId))
+                                },
+                            )
+                        }
+                        composable<WishlistDestination> {
+                            RequireLogin { _, _ ->
+                                WishlistScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
+                                )
+                            }
                         }
                         composable<ComingSoonDestination> { entry ->
                             ComingSoonScreen(

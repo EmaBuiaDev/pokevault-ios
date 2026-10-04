@@ -32,6 +32,9 @@ data class Card(
     val number: String?
         get() = match?.groupValues?.get(2)?.let { raw -> raw.toIntOrNull()?.toString() ?: raw }
 
+    /** L'id con cui l'app Android salva la carta nelle wishlist: "ita:me05:4". */
+    fun italianId(): String? = folderName?.let { "ita:${it.lowercase()}:$number" }
+
     fun imageUrl(baseUrl: String, size: String = "low"): String? {
         val folder = folderName ?: return null
         return "${baseUrl.trimEnd('/')}/images/it/$folder/$number?size=$size"

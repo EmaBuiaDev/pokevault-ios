@@ -16,6 +16,21 @@ object AppLocale {
     val other: String get() = "Altro"
     val unknownError: String get() = "Errore sconosciuto"
     val back: String get() = "Indietro"
+    val wishlistTitle: String get() = "Wishlist"
+    val wishlistIconPokeBall: String get() = "Da prendere"
+    val wishlistIconGreatBall: String get() = "Priorità"
+    val wishlistIconUltraBall: String get() = "Costose"
+    val wishlistIconMasterBall: String get() = "Carta della vita"
+    val wishlistIconBudget: String get() = "Occasioni"
+    val wishlistIconTrade: String get() = "Da scambiare"
+    val wishlistIconGift: String get() = "Regalo"
+    val wishlistIconGraded: String get() = "Da gradare"
+    val wishlistIconDeck: String get() = "Per il deck"
+    val wishlistIconSet: String get() = "Completa set"
+
+    val search: String get() = "Cerca..."
+    val searchCard: String get() = "Cerca una carta"
+    val searchInSets: String get() = "Cerca tra tutte le espansioni..."
     val offlineMessage: String get() = "Sei offline. Alcune funzioni non sono disponibili."
 
     val statistics: String get() = "Statistiche"
@@ -105,6 +120,16 @@ object AppLocale {
         "colorless" to "Incolore",
         "normal" to "Normale"
     )
+
+    private val typeItToEn = typeEnToIt.entries.associate { (k, v) -> v.lowercase() to k.replaceFirstChar { it.uppercase() } }
+
+    /** Normalizza un tipo (italiano o inglese) alla versione inglese: serve a TypeColors. */
+    fun typeToEnglish(type: String): String {
+        if (type.isBlank()) return type
+        val key = type.lowercase().trim()
+        if (typeEnToIt.containsKey(key)) return key.replaceFirstChar { it.uppercase() }
+        return typeItToEn[key] ?: type
+    }
 
     fun translateType(type: String): String {
         if (type.isBlank()) return type

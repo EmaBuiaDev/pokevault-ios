@@ -11,6 +11,9 @@ interface CatalogApi {
     suspend fun getExpansions(): List<Expansion>
     suspend fun getExpansionCards(expansionId: String): List<Card>
     suspend fun getExpansionPrices(expansionId: String): Map<String, PriceEntry>
+
+    /** Tutto il catalogo italiano (~18.800 carte, ~700 KB compressi): serve alla ricerca. */
+    suspend fun getFullCatalog(): List<Card>
 }
 
 class KtorCatalogApi(
@@ -27,4 +30,7 @@ class KtorCatalogApi(
 
     override suspend fun getExpansionPrices(expansionId: String): Map<String, PriceEntry> =
         client.get("$base/ita/prices/${expansionId.lowercase()}.json").body<ExpansionPrices>().prices
+
+    override suspend fun getFullCatalog(): List<Card> =
+        client.get("$base/ita/catalog.json").body<List<Card>>()
 }

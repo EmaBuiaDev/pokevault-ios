@@ -72,15 +72,19 @@ class FirestoreApi(
         check(response.status.isSuccess()) { "Firestore ${response.status.value}" }
     }
 
+    suspend fun listCards(uid: String, idToken: String) = listDocuments(uid, idToken, "cards")
+
+    suspend fun listWishlists(uid: String, idToken: String) = listDocuments(uid, idToken, "wishlists")
+
     /**
-     * Tutti i documenti di users/{uid}/cards, pagina per pagina, come JSON
-     * semplice (vedi [firestoreFieldsToJson]) con l'id del documento.
+     * Tutti i documenti di users/{uid}/{collection}, pagina per pagina, come
+     * JSON semplice (vedi [firestoreFieldsToJson]) con l'id del documento.
      */
-    suspend fun listCards(uid: String, idToken: String): List<Pair<String, JsonObject>> {
+    private suspend fun listDocuments(uid: String, idToken: String, collection: String): List<Pair<String, JsonObject>> {
         val result = mutableListOf<Pair<String, JsonObject>>()
         var pageToken: String? = null
         do {
-            val response = client.get("$documents/users/$uid/cards") {
+            val response = client.get("$documents/users/$uid/$collection") {
                 expectSuccess = false
                 bearerAuth(idToken)
                 url.parameters.append("pageSize", "300")
