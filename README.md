@@ -47,8 +47,10 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Tema, colori, simboli di rarita' e bottom bar presi dall'app Android; Home con MenuGrid
 
 ### Fase 3: account e collezione
-- [ ] Nell'app iOS registrata nello stesso progetto Firebase: `GoogleService-Info.plist`
-- [ ] Login: Google **e Sign in with Apple** (obbligatorio sull'App Store se c'è Google)
+- [x] App iOS registrata nello stesso progetto Firebase; plist nel segreto `FIREBASE_IOS_PLIST`, mai nel repo
+- [x] Login con email e password (REST), provato su Appetize con due account veri il 04/10/2026
+- [ ] Login con Google **e Sign in with Apple** (obbligatorio sull'App Store se c'è Google)
+- [ ] Refresh token nel Portachiavi iOS invece che in un file
 - [ ] Collezione sincronizzata su Firestore, con le stesse due chiavi dell'app Android
 - [ ] Eliminazione dell'account dall'app (obbligatoria per Apple)
 

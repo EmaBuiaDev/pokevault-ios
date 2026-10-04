@@ -2,12 +2,15 @@ package com.emabuia.pokevault
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -131,7 +134,10 @@ fun App() {
                         }
                     }
                 }
-                if (selectedTab != null) {
+                // Con la tastiera aperta la barra si toglie, come su Android: sotto la
+                // tastiera non serve e ruberebbe spazio al campo su cui si scrive.
+                val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+                if (selectedTab != null && !keyboardOpen) {
                     PokeVaultBottomBar(selected = selectedTab, onSelect = { navController.selectTab(it) })
                 }
             }
