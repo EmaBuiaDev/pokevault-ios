@@ -51,6 +51,12 @@ class AuthRepository(
     suspend fun login(email: String, password: String): Session =
         start(auth.signIn(email, password), nameIfNew = "Allenatore")
 
+    /** Come loginWithGoogle su Android: profilo creato al primo accesso col nome di Google. */
+    suspend fun loginWithGoogle(googleIdToken: String): Session {
+        val tokens = auth.signInWithGoogle(googleIdToken)
+        return start(tokens, nameIfNew = tokens.displayName.ifBlank { "Allenatore" })
+    }
+
     suspend fun resetPassword(email: String) = auth.sendPasswordReset(email)
 
     fun logout() {

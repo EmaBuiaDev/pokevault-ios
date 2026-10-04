@@ -9,6 +9,8 @@ import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
+import com.emabuia.pokevault.firebase.GoogleSignIn
+import com.emabuia.pokevault.firebase.platformGoogleAuthLauncher
 import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.card.CardDetailViewModel
 import com.emabuia.pokevault.screens.cards.ExpansionCardsViewModel
@@ -47,6 +49,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single(named(DATA)) { FileCache(dataDir) }
     single { FirebaseAuthApi(get()) }
     single { FirestoreApi(get()) }
+    single { GoogleSignIn(get(), platformGoogleAuthLauncher()) }
     single { AuthRepository(get(), get(), get(named(DATA)), now = ::nowMillis) }
     single { CollectionRepository(get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE))) }

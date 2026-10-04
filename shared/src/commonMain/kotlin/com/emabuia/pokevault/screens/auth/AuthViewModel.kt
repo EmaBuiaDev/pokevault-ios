@@ -9,6 +9,9 @@ import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.Session
 import com.emabuia.pokevault.firebase.FirebaseAuthException
 import com.emabuia.pokevault.firebase.FirebaseConfig
+import com.emabuia.pokevault.firebase.GoogleSignIn
+import com.emabuia.pokevault.firebase.GoogleSignInCancelled
+import com.emabuia.pokevault.firebase.GoogleSignInFailed
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -19,7 +22,10 @@ data class AuthUiState(
 )
 
 /** Stessi controlli e stessi messaggi di AuthViewModel nell'app Android. */
-class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
+class AuthViewModel(
+    private val repository: AuthRepository,
+    private val googleSignIn: GoogleSignIn,
+) : ViewModel() {
     val session: StateFlow<Session?> = repository.session
 
     var uiState by mutableStateOf(AuthUiState())
@@ -51,7 +57,8 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
 
     fun logout() = repository.logout()
 
-    fun googleNotReady() = fail("L'accesso con Google arriva nel prossimo aggiornamento: per ora usa email e password.")
+    /** Come "Continua con Google" su Android: stesso account Google, stesso profilo. */
+    fun loginWithGoogle() = launchAuth { repository.loginWithGoogle(googleSignIn.idToken()) }
 
     fun clearError() {
         uiState = uiState.copy(errorMessage = null)
@@ -70,7 +77,9 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
                 AuthUiState(errorMessage = successMessage)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
-                AuthUiState(errorMessage = messageFor(e))
+                // Pagina di Google chiusa: e' una scelta, non un errore da mostrare.
+                if (e is GoogleSignInCancelled) AuthUiState()
+                else                 AuthUiState(errorMessage = messageFor(e))
             }
         }
     }
@@ -94,7 +103,10 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
             "WEAK_PASSWORD" -> "La password deve avere almeno 6 caratteri"
             "TOO_MANY_ATTEMPTS_TRY_LATER" -> "Troppi tentativi. Riprova tra qualche minuto."
             "USER_DISABLED" -> "Questo account è stato disattivato"
-            null -> "Errore di connessione. Controlla internet."
+            null -> when (error) {
+                is UnsupportedOperationException, is GoogleSignInFailed -> error.message ?: "Accesso non riuscito"
+                else -> "Errore di connessione. Controlla internet."
+            }
             else -> "Errore: ${error.message}"
         }
     }

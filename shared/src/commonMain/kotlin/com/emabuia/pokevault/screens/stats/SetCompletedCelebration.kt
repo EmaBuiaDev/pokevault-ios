@@ -53,6 +53,7 @@ import kotlinx.serialization.builtins.SetSerializer
 import kotlinx.serialization.builtins.serializer
 import org.koin.compose.koinInject
 import org.koin.core.qualifier.named
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -233,7 +234,8 @@ private fun Confetti() {
             if (local <= 0f) return@repeat
 
             // Da -75° a +75°, con lo zero verso l'alto.
-            val angle = Math.toRadians((-75.0 + 150.0 * index / (particles - 1)))
+            // Math.toRadians e' solo JVM: qui la conversione a mano.
+            val angle = (-75.0 + 150.0 * index / (particles - 1)) * PI / 180.0
             val distance = rise * local
 
             val x = originX + sin(angle).toFloat() * distance * 0.6f

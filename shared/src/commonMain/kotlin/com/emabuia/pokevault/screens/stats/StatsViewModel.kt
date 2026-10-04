@@ -92,7 +92,8 @@ class StatsViewModel(
         // Il totale del set: quello stampato sulle carte se c'e' (come
         // linkedBase.printedTotal su Android), altrimenti quante carte ha.
         val totalsByName = HashMap<String, Int>(expansions.size * 2)
-        expansions.forEach { totalsByName.putIfAbsent(it.name, it.officialCount ?: it.cardCount) }
+        // getOrPut e non putIfAbsent (solo JVM): vince la prima espansione con quel nome, come su Android.
+        expansions.forEach { totalsByName.getOrPut(it.name) { it.officialCount ?: it.cardCount } }
 
         val completions = cards.asSequence()
             .filter { it.set.isNotBlank() }

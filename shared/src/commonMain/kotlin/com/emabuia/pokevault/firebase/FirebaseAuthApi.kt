@@ -62,6 +62,16 @@ class FirebaseAuthApi(
     suspend fun signIn(email: String, password: String): AuthTokens =
         accounts("signInWithPassword", """{"email":${quote(email)},"password":${quote(password)},"returnSecureToken":true}""")
 
+    /**
+     * Da id token di Google a sessione Firebase (signInWithIdp): lo stesso
+     * GoogleAuthProvider.getCredential(idToken) dell'app Android.
+     */
+    suspend fun signInWithGoogle(googleIdToken: String): AuthTokens =
+        accounts(
+            "signInWithIdp",
+            """{"postBody":${quote("id_token=$googleIdToken&providerId=google.com")},"requestUri":"http://localhost","returnIdpCredential":true,"returnSecureToken":true}""",
+        )
+
     suspend fun sendPasswordReset(email: String) {
         accounts<Unit>("sendOobCode", """{"requestType":"PASSWORD_RESET","email":${quote(email)}}""", decode = false)
     }

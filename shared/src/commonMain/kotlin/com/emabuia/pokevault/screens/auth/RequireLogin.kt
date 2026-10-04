@@ -22,7 +22,7 @@ fun RequireLogin(content: @Composable (session: Session, onLogout: () -> Unit) -
         AuthScreen(
             onLogin = viewModel::login,
             onRegister = viewModel::register,
-            onGoogleSignIn = viewModel::googleNotReady,
+            onGoogleSignIn = viewModel::loginWithGoogle,
             onForgotPassword = viewModel::resetPassword,
             isLoading = viewModel.uiState.isLoading,
             errorMessage = viewModel.uiState.errorMessage,
