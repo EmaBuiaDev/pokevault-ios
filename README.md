@@ -37,7 +37,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 ### Fase 1: la filiera (gratis)
 - [x] Scheletro KMP: Android, desktop, iOS
 - [x] Prima schermata vera: espansioni italiane da `/v1/expansions`, con i loghi
-- [ ] Creare il repo su GitHub e fare push; controllare che la job iOS sia verde
+- [x] Repo su GitHub (pubblico) e prima build iOS verde, 04/10/2026
 - [ ] Caricare lo zip del simulatore su appetize.io e guardare l'app
 
 ### Fase 2: il catalogo (gratis)
