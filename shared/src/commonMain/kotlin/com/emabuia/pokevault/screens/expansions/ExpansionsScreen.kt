@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.screens.expansions
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +39,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
-fun ExpansionsScreen() {
+fun ExpansionsScreen(navigateToCards: (Expansion) -> Unit) {
     val viewModel = koinViewModel<ExpansionsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
@@ -57,12 +58,12 @@ fun ExpansionsScreen() {
                 Text(stringResource(Res.string.retry))
             }
         }
-        is ExpansionsState.Ready -> ExpansionList(current.expansions)
+        is ExpansionsState.Ready -> ExpansionList(current.expansions, navigateToCards)
     }
 }
 
 @Composable
-private fun ExpansionList(expansions: List<Expansion>) {
+private fun ExpansionList(expansions: List<Expansion>, onClick: (Expansion) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
@@ -75,16 +76,16 @@ private fun ExpansionList(expansions: List<Expansion>) {
             )
         }
         items(expansions, key = { it.id }) { expansion ->
-            ExpansionRow(expansion)
+            ExpansionRow(expansion, onClick = { onClick(expansion) })
             HorizontalDivider()
         }
     }
 }
 
 @Composable
-private fun ExpansionRow(expansion: Expansion) {
+private fun ExpansionRow(expansion: Expansion, onClick: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AsyncImage(

@@ -10,11 +10,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
 object ExpansionsDestination
+
+@Serializable
+data class ExpansionCardsDestination(val expansionId: String, val expansionName: String)
 
 @Composable
 fun App() {
@@ -25,7 +30,17 @@ fun App() {
             val navController: NavHostController = rememberNavController()
             NavHost(navController = navController, startDestination = ExpansionsDestination) {
                 composable<ExpansionsDestination> {
-                    ExpansionsScreen()
+                    ExpansionsScreen(navigateToCards = { expansion ->
+                        navController.navigate(ExpansionCardsDestination(expansion.id, expansion.name))
+                    })
+                }
+                composable<ExpansionCardsDestination> { backStackEntry ->
+                    val destination = backStackEntry.toRoute<ExpansionCardsDestination>()
+                    ExpansionCardsScreen(
+                        expansionId = destination.expansionId,
+                        expansionName = destination.expansionName,
+                        navigateBack = { navController.popBackStack() },
+                    )
                 }
             }
         }

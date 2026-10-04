@@ -3,5 +3,10 @@
     <string name="expansions_title">Espansioni</string>
     <string name="expansions_cards">%1$d carte</string>
     <string name="expansions_error">Impossibile caricare le espansioni</string>
+    <string name="cards_error">Impossibile caricare le carte</string>
+    <string name="card_illustrator">Illustrazione: %1$s</string>
+    <string name="card_open_cardmarket">Apri su Cardmarket</string>
     <string name="retry">Riprova</string>
+    <string name="back">Indietro</string>
+    <string name="close">Chiudi</string>
 </resources>

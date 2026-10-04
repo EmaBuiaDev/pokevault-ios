@@ -41,8 +41,8 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Caricare lo zip del simulatore su appetize.io e guardare l'app
 
 ### Fase 2: il catalogo (gratis)
-- [ ] Carte di un'espansione (`/v1/expansions/{id}/cards`) e immagini `/images/it/...`
-- [ ] Prezzi (`/ita/prices/{code}.json`), mostrando sempre il minimo (`low`) come su Android
+- [x] Carte di un'espansione (`/v1/expansions/{id}/cards`) e immagini `/images/it/...`
+- [x] Prezzi (`/ita/prices/{code}.json`), mostrando sempre il minimo (`low`) come su Android
 - [ ] Cache locale: Room KMP o multiplatform-settings al posto delle SharedPreferences
 - [ ] Tema e colori presi dall'app Android
 
