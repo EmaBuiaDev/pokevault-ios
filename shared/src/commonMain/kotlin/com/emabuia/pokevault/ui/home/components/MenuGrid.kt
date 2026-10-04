@@ -1,0 +1,299 @@
+package com.emabuia.pokevault.ui.home.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.emabuia.pokevault.ui.components.CascadeIn
+import com.emabuia.pokevault.ui.components.pressScale
+import com.emabuia.pokevault.ui.components.pressSlide
+import com.emabuia.pokevault.ui.theme.*
+
+data class MenuItemData(
+    val title: String,
+    val icon: ImageVector,
+    val gradientColors: List<Color>,
+    val routeKey: String
+)
+
+/**
+ * @param cascadeVisible false finche' la griglia deve restare nascosta, true per
+ *   farla entrare a cascata. Chi chiama lo mette a true una volta sola: il
+ *   benvenuto e' bello la prima volta e basta.
+ */
+@Composable
+fun MenuGrid(
+    onItemClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    cascadeVisible: Boolean = true
+) {
+    val menuItems = listOf(
+        MenuItemData(
+            title = "Le mie\ncarte",
+            icon = Icons.Default.Style,
+            gradientColors = listOf(AppColors.blue, AppColors.blue.copy(alpha = 0.7f)),
+            routeKey = "my_cards"
+        ),
+        MenuItemData(
+            title = "Statistiche",
+            icon = Icons.Default.BarChart,
+            gradientColors = listOf(AppColors.purple, AppColors.purple.copy(alpha = 0.7f)),
+            routeKey = "statistics"
+        ),
+        MenuItemData(
+            title = "Carte\ngradate",
+            icon = Icons.Default.Star,
+            gradientColors = listOf(AppColors.green, AppColors.green.copy(alpha = 0.7f)),
+            routeKey = "graded"
+        ),
+        MenuItemData(
+            title = "Carte e Espansioni",
+            icon = Icons.Default.CatchingPokemon,
+            gradientColors = listOf(AppColors.yellow, AppColors.red),
+            routeKey = "pokedex"
+        )
+    )
+
+    val competitiveItem = MenuItemData(
+        title = "Competitive",
+        icon = Icons.Default.EmojiEvents,
+        gradientColors = listOf(AppColors.lavender, AppColors.lavender.copy(alpha = 0.6f)),
+        routeKey = "competitive"
+    )
+
+    val albumItem = MenuItemData(
+        title = "Collector Lab",
+        icon = Icons.Default.PhotoAlbum,
+        gradientColors = listOf(AppColors.orange, AppColors.orange.copy(alpha = 0.7f)),
+        routeKey = "collector_lab"
+    )
+
+    // La wishlist prima stava sul FAB viola della Home. Con la bottom bar quel
+    // FAB non c'e' piu' e senza questa card resterebbe irraggiungibile.
+    val wishlistItem = MenuItemData(
+        title = "Wishlist",
+        icon = Icons.Default.Favorite,
+        gradientColors = listOf(AppColors.purple, AppColors.purple.copy(alpha = 0.7f)),
+        routeKey = "wishlist"
+    )
+
+    val tradeRadarItem = MenuItemData(
+        title = "TradeRadar",
+        icon = Icons.Default.SwapHoriz,
+        gradientColors = listOf(AppColors.green, AppColors.blue),
+        routeKey = "trade_radar"
+    )
+
+    Column(
+        modifier = modifier.padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            CascadeIn(index = 0, visible = cascadeVisible, modifier = Modifier.weight(1f)) {
+                MenuCard(
+                    item = menuItems[0],
+                    onClick = { onItemClick(menuItems[0].routeKey) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            CascadeIn(index = 1, visible = cascadeVisible, modifier = Modifier.weight(1f)) {
+                MenuCard(
+                    item = menuItems[1],
+                    onClick = { onItemClick(menuItems[1].routeKey) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            CascadeIn(index = 2, visible = cascadeVisible, modifier = Modifier.weight(1f)) {
+                MenuCard(
+                    item = menuItems[2],
+                    onClick = { onItemClick(menuItems[2].routeKey) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            CascadeIn(index = 3, visible = cascadeVisible, modifier = Modifier.weight(1f)) {
+                MenuCard(
+                    item = menuItems[3],
+                    onClick = { onItemClick(menuItems[3].routeKey) },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        CascadeIn(index = 4, visible = cascadeVisible) {
+            FeaturedCard(
+                item = competitiveItem,
+                subtitle = "Mazzi, tornei e risultati",
+                onClick = { onItemClick(competitiveItem.routeKey) }
+            )
+        }
+
+        CascadeIn(index = 5, visible = cascadeVisible) {
+            FeaturedCard(
+                item = albumItem,
+                subtitle = "Album, chase e illustratori.",
+                onClick = { onItemClick(albumItem.routeKey) }
+            )
+        }
+
+        CascadeIn(index = 6, visible = cascadeVisible) {
+            FeaturedCard(
+                item = wishlistItem,
+                subtitle = "Le carte che ti mancano",
+                onClick = { onItemClick(wishlistItem.routeKey) }
+            )
+        }
+
+        // Su Android la card dipende da BuildConfig.TRADE_ENABLED; qui c'e' sempre,
+        // e porta alla schermata "in arrivo" finche' TradeRadar non e' portato.
+        run {
+            CascadeIn(index = 7, visible = cascadeVisible) {
+                FeaturedCard(
+                    item = tradeRadarItem,
+                    subtitle = "Scambia doppioni con chi è vicino",
+                    onClick = { onItemClick(tradeRadarItem.routeKey) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FeaturedCard(
+    item: MenuItemData,
+    subtitle: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        // Il feedback al tocco sta in cima alla catena: il graphicsLayer che
+        // muove la card deve avvolgere anche sfondo e gradiente, non solo il
+        // contenuto disegnato dopo.
+        modifier = modifier
+            .pressSlide(onClick = onClick)
+            .fillMaxWidth()
+            .height(80.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.linearGradient(
+                    colors = item.gradientColors
+                )
+            )
+    ) {
+        Icon(
+            imageVector = Icons.Default.Style,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.1f),
+            modifier = Modifier
+                .size(100.dp)
+                .align(Alignment.CenterEnd)
+                .offset(x = 20.dp, y = 10.dp)
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = item.title,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 12.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+fun MenuCard(
+    item: MenuItemData,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .pressScale(onClick = onClick)
+            .height(100.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.linearGradient(item.gradientColors)
+            )
+            .padding(14.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.title,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = item.title,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}

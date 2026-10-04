@@ -29,6 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,6 +56,10 @@ import com.emabuia.pokevault.resources.card_open_cardmarket
 import com.emabuia.pokevault.resources.cards_error
 import com.emabuia.pokevault.resources.close
 import com.emabuia.pokevault.resources.retry
+import com.emabuia.pokevault.ui.components.RarityMarkWithLabel
+import com.emabuia.pokevault.ui.components.RarityOverlayBadge
+import com.emabuia.pokevault.ui.theme.AppColors
+import com.emabuia.pokevault.util.RarityUtils
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -73,8 +78,10 @@ fun ExpansionCardsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
+        containerColor = AppColors.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.background),
                 title = { Text(expansionName, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = navigateBack) {
@@ -125,13 +132,19 @@ private fun CardGrid(content: ExpansionCards) {
 
 @Composable
 private fun CardCell(card: Card, price: PriceEntry?, onClick: () -> Unit) {
+    val rarity = RarityUtils.getRarityInfo(card.rarity)
     Column(Modifier.padding(6.dp).clickable(onClick = onClick)) {
-        AsyncImage(
-            model = card.imageUrl(WORKER_BASE_URL),
-            contentDescription = card.nome,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.fillMaxWidth().aspectRatio(CARD_RATIO).clip(RoundedCornerShape(6.dp)),
-        )
+        Box {
+            AsyncImage(
+                model = card.imageUrl(WORKER_BASE_URL),
+                contentDescription = card.nome,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxWidth().aspectRatio(CARD_RATIO).clip(RoundedCornerShape(6.dp)),
+            )
+            if (!rarity.isUnknown) {
+                RarityOverlayBadge(rarity, Modifier.align(Alignment.TopEnd).padding(4.dp))
+            }
+        }
         Text(
             card.nome,
             style = MaterialTheme.typography.bodyMedium,
@@ -142,7 +155,7 @@ private fun CardCell(card: Card, price: PriceEntry?, onClick: () -> Unit) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("#${card.number.orEmpty()}", style = MaterialTheme.typography.bodySmall)
             price?.displayText()?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                Text(it, style = MaterialTheme.typography.bodySmall, color = AppColors.green)
             }
         }
     }
@@ -164,10 +177,14 @@ private fun CardDetailDialog(card: Card, price: PriceEntry?, onDismiss: () -> Un
                     modifier = Modifier.fillMaxWidth().aspectRatio(CARD_RATIO).clip(RoundedCornerShape(10.dp)),
                 )
                 Text(card.nome, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-                Text(
-                    listOfNotNull("#${card.number.orEmpty()}", card.rarity, price?.displayText()).joinToString(" · "),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("#${card.number.orEmpty()}", style = MaterialTheme.typography.bodyMedium)
+                    val rarity = RarityUtils.getRarityInfo(card.rarity)
+                    if (!rarity.isUnknown) RarityMarkWithLabel(rarity, fontSize = 13)
+                    price?.displayText()?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = AppColors.green)
+                    }
+                }
                 card.illustratore?.let {
                     Text(stringResource(Res.string.card_illustrator, it), style = MaterialTheme.typography.bodySmall)
                 }

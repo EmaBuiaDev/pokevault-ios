@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -66,7 +68,8 @@ fun ExpansionsScreen(navigateToCards: (Expansion) -> Unit) {
 private fun ExpansionList(expansions: List<Expansion>, onClick: (Expansion) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = WindowInsets.safeDrawing.asPaddingValues(),
+        // Sotto c'e' la bottom bar, che tiene conto da se' del bordo dello schermo.
+        contentPadding = WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal).asPaddingValues(),
     ) {
         item {
             Text(

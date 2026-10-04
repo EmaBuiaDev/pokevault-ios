@@ -6,6 +6,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 sealed interface ExpansionsState {
     data object Loading : ExpansionsState
@@ -25,8 +27,15 @@ class CatalogRepository(private val api: CatalogApi) {
     private val _expansions = MutableStateFlow<ExpansionsState>(ExpansionsState.Loading)
     val expansions: StateFlow<ExpansionsState> = _expansions.asStateFlow()
 
+    private val expansionsMutex = Mutex()
+
     // Solo in memoria, per la sessione: come getExpansionCards() su Android.
     private val cardsCache = mutableMapOf<String, ExpansionCards>()
+
+    /** Home e Pokedex chiedono lo stesso elenco: lo scarica solo il primo. */
+    suspend fun ensureExpansions() = expansionsMutex.withLock {
+        if (_expansions.value !is ExpansionsState.Ready) refresh()
+    }
 
     suspend fun refresh() {
         _expansions.value = ExpansionsState.Loading

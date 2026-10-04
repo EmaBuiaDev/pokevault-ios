@@ -44,7 +44,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Carte di un'espansione (`/v1/expansions/{id}/cards`) e immagini `/images/it/...`
 - [x] Prezzi (`/ita/prices/{code}.json`), mostrando sempre il minimo (`low`) come su Android
 - [ ] Cache locale: Room KMP o multiplatform-settings al posto delle SharedPreferences
-- [ ] Tema e colori presi dall'app Android
+- [x] Tema, colori, simboli di rarita' e bottom bar presi dall'app Android; Home con MenuGrid
 
 ### Fase 3: account e collezione
 - [ ] Nell'app iOS registrata nello stesso progetto Firebase: `GoogleService-Info.plist`

@@ -11,7 +11,7 @@ class ExpansionsViewModel(private val repository: CatalogRepository) : ViewModel
     val state: StateFlow<ExpansionsState> = repository.expansions
 
     init {
-        retry()
+        viewModelScope.launch { repository.ensureExpansions() }
     }
 
     fun retry() {
