@@ -59,6 +59,9 @@ object AppLocale {
             "Tutti gli altri marchi appartengono ai rispettivi proprietari."
 
     val wishlistTitle: String get() = "Wishlist"
+    val wishlistBudgetHint: String get() = "Il tetto che ti dai per questa lista"
+    fun wishlistCardsCount(count: Int) = "$count carte"
+    val wishlistPickerSubtitle: String get() = "Una carta può stare in più liste"
     val wishlistIconPokeBall: String get() = "Da prendere"
     val wishlistIconGreatBall: String get() = "Priorità"
     val wishlistIconUltraBall: String get() = "Costose"
@@ -142,6 +145,19 @@ object AppLocale {
     }
     fun filterShowAllExpansions(count: Int): String = "Mostra tutte ($count)"
     fun selectedCount(count: Int): String = "$count selezionate"
+
+    // Wishlist modificabili: gli stessi testi dell'app Android.
+    val wishlistAddToList: String get() = "Aggiungi alla wishlist"
+    val wishlistAlreadyIn: String get() = "Già dentro"
+    val wishlistBudget: String get() = "Budget"
+    val wishlistBudgetOptional: String get() = "Facoltativo"
+    val wishlistChooseColor: String get() = "Colore"
+    val wishlistChooseIcon: String get() = "A cosa serve questa lista"
+    val wishlistCreate: String get() = "Crea Wishlist"
+    val wishlistCreateNewList: String get() = "Nuova lista"
+    val wishlistEmptySubtitle: String get() = "Crea la tua prima lista dei desideri"
+    val wishlistName: String get() = "Nome lista"
+    val wishlistNamePlaceholder: String get() = "Es. Chase cards Kanto"
 
     val search: String get() = "Cerca..."
     val searchCard: String get() = "Cerca una carta"

@@ -61,7 +61,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { CollectionWriter(get(), get(), get()) }
     single { ThemePreference(get(named(DATA))) }
     single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
-    single { WishlistRepository(get(), get(), get(), get(named(CACHE))) }
+    single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
 }
 
 val viewModelModule = module {

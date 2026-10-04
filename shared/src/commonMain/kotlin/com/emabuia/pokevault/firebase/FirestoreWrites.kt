@@ -132,6 +132,53 @@ class FirestoreWrites(
         commit(idToken, buildJsonObject { put("delete", userPath(uid)) })
     }
 
+    /** Un documento nuovo in users/{uid}/{collection} (collection.add() su Android). Restituisce l'id. */
+    suspend fun createDocument(uid: String, idToken: String, collection: String, fields: Map<String, Any?>): String {
+        val id = newDocumentId()
+        commit(idToken, buildJsonObject {
+            putJsonObject("update") {
+                put("name", "$database/documents/users/$uid/$collection/$id")
+                put("fields", toFields(fields))
+            }
+            putJsonObject("currentDocument") { put("exists", false) }
+        })
+        return id
+    }
+
+    /** Aggiorna solo i campi dati di un documento esistente (docRef.update(map)). */
+    suspend fun updateDocument(uid: String, idToken: String, collection: String, id: String, fields: Map<String, Any?>) {
+        commit(idToken, buildJsonObject {
+            putJsonObject("update") {
+                put("name", "$database/documents/users/$uid/$collection/$id")
+                put("fields", toFields(fields))
+            }
+            putJsonObject("updateMask") { putJsonArray("fieldPaths") { fields.keys.forEach { add(JsonPrimitive(it)) } } }
+            putJsonObject("currentDocument") { put("exists", true) }
+        })
+    }
+
+    /**
+     * FieldValue.arrayUnion (add = true) o arrayRemove su un campo lista: come su
+     * Android, senza leggere e riscrivere tutta la lista.
+     */
+    suspend fun changeArray(uid: String, idToken: String, collection: String, id: String, field: String, values: List<String>, add: Boolean) {
+        if (values.isEmpty()) return
+        commit(idToken, buildJsonObject {
+            putJsonObject("transform") {
+                put("document", "$database/documents/users/$uid/$collection/$id")
+                putJsonArray("fieldTransforms") {
+                    add(buildJsonObject {
+                        put("fieldPath", field)
+                        putJsonObject(if (add) "appendMissingElements" else "removeAllFromArray") {
+                            put("values", JsonArray(values.map { toValue(it) }))
+                        }
+                    })
+                }
+            }
+            putJsonObject("currentDocument") { put("exists", true) }
+        })
+    }
+
     /** FieldValue.increment su totalCards e totalValue di users/{uid}. */
     suspend fun incrementTotals(uid: String, idToken: String, cards: Long, value: Double) {
         if (cards == 0L && value == 0.0) return

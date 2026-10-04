@@ -60,7 +60,7 @@ class WishlistRepositoryTest {
         val store = FileCache(dir)
         val auth = AuthRepository(FirebaseAuthApi(client, "k"), FirestoreApi(client, "p"), store, now = { 0L })
         auth.login("ash@gmail.com", "pikachu")
-        val repository = WishlistRepository(FirestoreApi(client, "p"), auth, CatalogRepository(catalogApi, store), store)
+        val repository = WishlistRepository(FirestoreApi(client, "p"), auth, CatalogRepository(catalogApi, store), store, com.emabuia.pokevault.firebase.FirestoreWrites(client, "p"))
 
         val lists = repository.wishlists()
         // Dalla piu' recente.
