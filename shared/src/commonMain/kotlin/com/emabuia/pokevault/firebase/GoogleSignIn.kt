@@ -78,8 +78,8 @@ class GoogleSignIn(
             else -> throw GoogleSignInFailed("Google ha rifiutato l'accesso: $error")
         }
         // Lo state deve tornare uguale: altrimenti la risposta non e' la nostra.
-        check(query["state"] == state) { "Risposta di Google non valida" }
-        val code = query["code"] ?: error("Google non ha restituito il codice")
+        if (query["state"] != state) throw GoogleSignInFailed("Risposta di Google non valida (state diverso)")
+        val code = query["code"] ?: throw GoogleSignInFailed("Google non ha restituito il codice: $callback")
 
         val response = client.submitForm(
             url = "https://oauth2.googleapis.com/token",
@@ -92,9 +92,16 @@ class GoogleSignIn(
             },
         ) { expectSuccess = false }
         val text = response.bodyAsText()
-        check(response.status.isSuccess()) { "Google: scambio del codice rifiutato (${response.status.value})" }
+        if (!response.status.isSuccess()) {
+            // La risposta di Google dice il perche' (redirect_uri_mismatch, invalid_grant...).
+            val reason = runCatching {
+                val body = json.parseToJsonElement(text).jsonObject
+                listOfNotNull(body["error"]?.jsonPrimitive?.content, body["error_description"]?.jsonPrimitive?.content).joinToString(": ")
+            }.getOrNull().orEmpty()
+            throw GoogleSignInFailed("Google ha rifiutato il codice (${response.status.value}) $reason".trim())
+        }
         return json.parseToJsonElement(text).jsonObject["id_token"]?.jsonPrimitive?.content
-            ?: error("Google non ha restituito l'id token")
+            ?: throw GoogleSignInFailed("Google non ha restituito l'id token")
     }
 
     companion object {

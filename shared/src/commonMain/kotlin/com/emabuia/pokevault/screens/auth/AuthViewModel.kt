@@ -105,7 +105,10 @@ class AuthViewModel(
             "USER_DISABLED" -> "Questo account è stato disattivato"
             null -> when (error) {
                 is UnsupportedOperationException, is GoogleSignInFailed -> error.message ?: "Accesso non riuscito"
-                else -> "Errore di connessione. Controlla internet."
+                // Solo i veri errori di rete diventano "connessione": prima lo erano
+                // tutti, e un rifiuto di Google sembrava un problema di Wi-Fi.
+                is kotlinx.io.IOException -> "Errore di connessione. Controlla internet."
+                else -> "Accesso non riuscito: ${error.message ?: error::class.simpleName}"
             }
             else -> "Errore: ${error.message}"
         }

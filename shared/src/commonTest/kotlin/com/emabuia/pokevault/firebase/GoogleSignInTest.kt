@@ -103,7 +103,7 @@ class GoogleSignInTest {
     fun aDifferentStateIsRejected() = runTest {
         val launcher = FakeLauncher { "$reversed:/oauth2redirect?state=un-altro&code=abc" }
         val google = GoogleSignIn(client, launcher, clientId = "c", reversedClientId = reversed)
-        assertFailsWith<IllegalStateException> { google.idToken() }
+        assertFailsWith<GoogleSignInFailed> { google.idToken() }
         assertTrue("token" !in bodies) // nessuno scambio del codice
     }
 
