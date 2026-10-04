@@ -30,7 +30,15 @@ class ExpansionTest {
     @Test
     fun logoUsesBaseSetCodeOrId() {
         val expansions = json.decodeFromString<ExpansionsResponse>(payload).expansions
-        assertEquals("https://x.dev/sets/ME05/image", expansions[0].logoUrl("https://x.dev/"))
-        assertEquals("https://x.dev/sets/SVP/image", expansions[1].logoUrl("https://x.dev"))
+        assertEquals("https://x.dev/sets/ME05/image?v=setimg-v5&source=ita", expansions[0].logoUrl("https://x.dev/"))
+        assertEquals("https://x.dev/sets/SVP/image?v=setimg-v5&source=ita", expansions[1].logoUrl("https://x.dev"))
+    }
+
+    @Test
+    fun logoUsesPrintedCodeWhereTheIdHasNone() {
+        val caos = Expansion(id = "me04", name = "Caos Nascente", baseSetCode = "ME04")
+        val obsidian = Expansion(id = "sv03", name = "Ossidiana Infuocata", baseSetCode = "SV03")
+        assertEquals("https://x.dev/sets/CRI/image?v=setimg-v5&source=ita", caos.logoUrl("https://x.dev"))
+        assertEquals("https://x.dev/sets/OBF/image?v=setimg-v5&source=ita", obsidian.logoUrl("https://x.dev"))
     }
 }
