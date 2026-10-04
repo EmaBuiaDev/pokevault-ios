@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  android-desktop:
+    name: Android + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Test e APK debug
+        run: ./gradlew :shared:jvmTest :androidApp:assembleDebug :desktopApp:compileKotlin
+
+  ios:
+    name: iOS (simulatore, senza firma)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      # Il compilatore Kotlin/Native (~1 GB) si scarica a ogni run se non lo teniamo.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      - name: Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      - name: Build per il simulatore
+        run: |
+          cd iosApp
+          xcodebuild -scheme iosApp -configuration Debug -sdk iphonesimulator -arch arm64 \
+            -derivedDataPath build/dd CODE_SIGNING_ALLOWED='NO'
+      # Lo .zip si carica su appetize.io per vedere l'app nel browser.
+      - name: Impacchetta PokeVault.app
+        run: |
+          cd iosApp/build/dd/Build/Products/Debug-iphonesimulator
+          ditto -c -k --sequesterRsrc --keepParent PokeVault.app "$GITHUB_WORKSPACE/PokeVault-simulator.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokeVault-simulator
+          path: PokeVault-simulator.zip
+          retention-days: 14

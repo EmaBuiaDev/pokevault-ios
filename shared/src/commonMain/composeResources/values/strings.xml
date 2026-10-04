@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<resources>
+    <string name="expansions_title">Espansioni</string>
+    <string name="expansions_cards">%1$d carte</string>
+    <string name="expansions_error">Impossibile caricare le espansioni</string>
+    <string name="retry">Riprova</string>
+</resources>
