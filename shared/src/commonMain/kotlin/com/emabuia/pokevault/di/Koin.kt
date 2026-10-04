@@ -3,12 +3,14 @@ package com.emabuia.pokevault.di
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.CatalogApi
 import com.emabuia.pokevault.data.CatalogRepository
+import com.emabuia.pokevault.data.CollectionRepository
 import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
 import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.cards.ExpansionCardsViewModel
+import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -41,11 +43,13 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { FirebaseAuthApi(get()) }
     single { FirestoreApi(get()) }
     single { AuthRepository(get(), get(), get(named(DATA)), now = ::nowMillis) }
+    single { CollectionRepository(get(), get(), get(named(CACHE))) }
 }
 
 val viewModelModule = module {
     factoryOf(::ExpansionsViewModel)
     factoryOf(::AuthViewModel)
+    factoryOf(::CollectionViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
 }
 

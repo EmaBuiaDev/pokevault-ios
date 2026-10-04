@@ -25,6 +25,7 @@ import com.emabuia.pokevault.screens.ComingSoonScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.auth.SignedInScreen
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
+import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
 import com.emabuia.pokevault.ui.navigation.BottomTab
@@ -60,8 +61,7 @@ private val BottomTab.destination: Any
         BottomTab.STATS -> StatsDestination
     }
 
-private const val COLLECTION_NEXT = "Sei dentro! La tua collezione arriva con il prossimo aggiornamento: e' la stessa dell'app Android, nello stesso account."
-private const val STATS_NEXT = "Le statistiche arrivano insieme alla collezione."
+private const val STATS_NEXT = "Le statistiche arrivano nel prossimo aggiornamento."
 private const val NOT_PORTED_YET = "Questa sezione c'e' sull'app Android e arrivera' presto anche qui."
 
 @Composable
@@ -96,12 +96,7 @@ fun App() {
                         }
                         composable<CollectionDestination> {
                             RequireLogin { session, onLogout ->
-                                SignedInScreen(
-                                    title = "Le mie carte",
-                                    session = session,
-                                    message = COLLECTION_NEXT,
-                                    onLogout = onLogout,
-                                )
+                                CollectionScreen(session = session, onLogout = onLogout)
                             }
                         }
                         composable<PokedexDestination> {

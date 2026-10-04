@@ -51,7 +51,8 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Login con email e password (REST), provato su Appetize con due account veri il 04/10/2026
 - [ ] Login con Google **e Sign in with Apple** (obbligatorio sull'App Store se c'è Google)
 - [ ] Refresh token nel Portachiavi iOS invece che in un file
-- [ ] Collezione sincronizzata su Firestore, con le stesse due chiavi dell'app Android
+- [x] Collezione in sola lettura da Firestore: divisa per espansione, totali, stampe raggruppate come su Android (collectionCardKey), offline
+- [ ] Aggiungere, modificare e togliere carte (scritture su Firestore, con test prima di toccare dati veri)
 - [ ] Eliminazione dell'account dall'app (obbligatoria per Apple)
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
