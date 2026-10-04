@@ -123,7 +123,11 @@ fun App() {
                         }
                         composable<CollectionDestination> {
                             RequireLogin { session, onLogout ->
-                                CollectionScreen(session = session, onLogout = onLogout)
+                                CollectionScreen(
+                                    session = session,
+                                    onLogout = onLogout,
+                                    onAddCard = { navController.selectTab(BottomTab.POKEDEX) },
+                                )
                             }
                         }
                         composable<PokedexDestination> {
