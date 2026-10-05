@@ -27,6 +27,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
+import com.emabuia.pokevault.ui.wishlist.WishlistEditorDialog
+import com.emabuia.pokevault.ui.wishlist.WishlistPickerDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -107,6 +112,15 @@ fun CardDetailScreen(
     var selectedLanguage by remember(cardId) { mutableStateOf(CardOptions.LANGUAGES.first()) }
     var confirmRemove by remember(cardId) { mutableStateOf(false) }
 
+    // Il cuore: in quali wishlist sta la carta, come il picker di SetDetailScreen su Android.
+    val wishlists = koinViewModel<WishlistViewModel>()
+    val wishState by wishlists.state.collectAsStateWithLifecycle()
+    val wishId = ready?.card?.italianId()
+    val inLists = wishId?.let { wishState.listIdsWith(it) }.orEmpty()
+    var picking by remember(cardId) { mutableStateOf(false) }
+    var creatingList by remember(cardId) { mutableStateOf(false) }
+    var wishNote by remember(cardId) { mutableStateOf<String?>(null) }
+
     Scaffold(
         containerColor = AppColors.background,
         bottomBar = {
@@ -134,6 +148,17 @@ fun CardDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, AppLocale.back, tint = AppColors.textPrimary)
+                    }
+                },
+                actions = {
+                    if (ready != null && ownership.signedIn && wishId != null) {
+                        IconButton(onClick = { picking = true }, enabled = !wishState.isLoading || wishState.wishlists.isNotEmpty()) {
+                            Icon(
+                                if (inLists.isNotEmpty()) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                                contentDescription = AppLocale.wishlistAddToList,
+                                tint = if (inLists.isNotEmpty()) AppColors.red else AppColors.textPrimary,
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.background),
@@ -167,6 +192,15 @@ fun CardDetailScreen(
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     }
+                    (wishState.saveError ?: wishNote)?.let {
+                        Text(
+                            it,
+                            color = if (wishState.saveError != null) AppColors.red else AppColors.green,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                    }
                     if (ownership.isOwned) {
                         Text(
                             "In collezione: " + ownership.owned.joinToString(" · ") { "${CardVariants.label(it.variant)} x${it.quantity}" },
@@ -191,6 +225,37 @@ fun CardDetailScreen(
                 }
             }
         }
+    }
+
+    if (picking && wishId != null) {
+        WishlistPickerDialog(
+            wishlists = wishState.wishlists,
+            selectedWishlistIds = inLists,
+            canCreateNew = true,
+            onDismiss = { picking = false },
+            onCreateNewRequested = {
+                picking = false
+                if (wishState.canCreate) creatingList = true else wishNote = AppLocale.wishlistFreeLimit
+            },
+            onConfirmSelection = { selected ->
+                picking = false
+                wishNote = null
+                wishlists.setCardLists(wishId, selected) { wishNote = "Wishlist aggiornate" }
+            },
+        )
+    }
+
+    if (creatingList && wishId != null) {
+        WishlistEditorDialog(
+            onDismiss = { creatingList = false },
+            onConfirm = { draft ->
+                wishlists.createWith(draft, wishId) {
+                    creatingList = false
+                    wishNote = "Wishlist creata e carta aggiunta"
+                }
+            },
+            isSaving = wishState.isSaving,
+        )
     }
 
     if (confirmRemove && ready != null) {

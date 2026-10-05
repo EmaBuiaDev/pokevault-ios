@@ -13,7 +13,12 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
 /** Una carta in wishlist, col prezzo minimo del suo set (se il set ha prezzi). */
-data class WishlistCard(val card: Card, val price: PriceEntry?)
+data class WishlistCard(
+    val card: Card,
+    val price: PriceEntry?,
+    /** L'id com'e' scritto nella lista: quello che arrayRemove deve ritrovare. */
+    val storedId: String,
+)
 
 /** Una wishlist con le carte che su iOS si sanno mostrare. */
 data class WishlistContent(
@@ -88,28 +93,46 @@ class WishlistRepository(
 
     suspend fun delete(id: String) = write { uid, token -> writes.deleteDocuments(uid, token, "wishlists", listOf(id)) }
 
-    /** addCardToWishlist (arrayUnion) su una o piu' liste. */
-    suspend fun addCard(listIds: Collection<String>, cardId: String) = write { uid, token ->
-        listIds.forEach { writes.changeArray(uid, token, "wishlists", it, "cardIds", listOf(cardId), add = true) }
-    }
-
     /** removeCardFromWishlist (arrayRemove). */
     suspend fun removeCard(listId: String, cardId: String) = write { uid, token ->
         writes.changeArray(uid, token, "wishlists", listId, "cardIds", listOf(cardId), add = false)
     }
 
+    /**
+     * updateCardWishlists su Android: la carta entra nelle liste spuntate ed
+     * esce da quelle tolte. Si prova ogni lista anche se una fallisce, poi si
+     * dice quante non sono andate.
+     */
+    suspend fun moveCard(cardId: String, addTo: Collection<String>, removeFrom: Collection<String>) = write { uid, token ->
+        val failed = (addTo.map { it to true } + removeFrom.map { it to false }).count { (listId, add) ->
+            try {
+                writes.changeArray(uid, token, "wishlists", listId, "cardIds", listOf(cardId), add = add)
+                false
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                true
+            }
+        }
+        if (failed > 0) throw IllegalStateException("$failed wishlist non aggiornate")
+    }
+
     private suspend fun <T> write(block: suspend (uid: String, token: String) -> T): T {
         val uid = auth.session.value?.uid ?: throw NotSignedInException()
         val token = auth.validIdToken() ?: throw NotSignedInException()
-        return block(uid, token).also { _changes.value += 1 }
+        // Anche una scrittura andata a meta' cambia le liste: si rilegge comunque.
+        try {
+            return block(uid, token)
+        } finally {
+            _changes.value += 1
+        }
     }
 
     /** Le carte di una lista, nell'ordine in cui sono state aggiunte. */
     suspend fun content(wishlist: Wishlist): WishlistContent {
         val found = catalog.italianCardsById(wishlist.cardIds)
-        val cards = wishlist.cardIds.mapNotNull { found[it] }.map { card ->
+        val cards = wishlist.cardIds.mapNotNull { id -> found[id]?.let { id to it } }.map { (id, card) ->
             val price = runCatching { catalog.expansionCards(card.espansioneId).priceOf(card) }.getOrNull()
-            WishlistCard(card, price)
+            WishlistCard(card, price, storedId = id)
         }
         return WishlistContent(wishlist, cards, unresolved = wishlist.cardIds.size - cards.size)
     }

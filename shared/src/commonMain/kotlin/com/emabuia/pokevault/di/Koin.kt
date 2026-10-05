@@ -8,6 +8,7 @@ import com.emabuia.pokevault.data.AccountDeleter
 import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.WishlistRepository
+import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
@@ -62,6 +63,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { ThemePreference(get(named(DATA))) }
     single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
+    single { PremiumRepository(get(), get(), now = ::nowMillis) }
 }
 
 val viewModelModule = module {
