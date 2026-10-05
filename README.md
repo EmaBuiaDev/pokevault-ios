@@ -38,7 +38,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Scheletro KMP: Android, desktop, iOS
 - [x] Prima schermata vera: espansioni italiane da `/v1/expansions`, con i loghi
 - [x] Repo su GitHub (pubblico) e prima build iOS verde, 04/10/2026
-- [ ] Caricare lo zip del simulatore su appetize.io e guardare l'app
+- [x] Caricare lo zip del simulatore su appetize.io e guardare l'app
 
 ### Fase 2: il catalogo (gratis)
 - [x] Carte di un'espansione (`/v1/expansions/{id}/cards`) e immagini `/images/it/...`
@@ -54,7 +54,13 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Refresh token nel Portachiavi iOS invece che in un file
 - [x] Collezione in sola lettura da Firestore: divisa per espansione, totali, stampe raggruppate come su Android (collectionCardKey), offline
 - [x] Aggiungere carte dal dettaglio (stampa, copie, condizione, lingua), cambiare copie e togliere stampe dalla collezione: stessi documenti di Android, provati contro un Firestore finto
-- [ ] Eliminazione dell'account dall'app (obbligatoria per Apple)
+- [x] Eliminazione dell'account dall'app (obbligatoria per Apple): nello stesso ordine di Android, da provare con un account usa e getta
+- [x] Collezione completa: ricerca, filtri, ordinamenti, viste come su Android
+- [x] Wishlist modificabili: crea, modifica, elimina, carte dal dettaglio (cuore); limite di 1 lista senza Premium, Premium letto dal Worker
+- [x] Illustratori: elenco, pagina artista, segui (stessi documenti di Android)
+- [x] Carte gradate, e il voto (ente, voto) si mette dalla finestra delle copie in Carte
+- [ ] Provare su Appetize wishlist, illustratori e gradate
+- [ ] Collector Lab completo (Album e Chase): oggi la voce in Home apre gli illustratori
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
 - [ ] Iscrizione all'Apple Developer Program, poi la richiesta per lo Small Business Program (commissione al 15%)
