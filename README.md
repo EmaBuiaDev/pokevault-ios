@@ -60,7 +60,8 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Illustratori: elenco, pagina artista, segui (stessi documenti di Android)
 - [x] Carte gradate, e il voto (ente, voto) si mette dalla finestra delle copie in Carte
 - [ ] Provare su Appetize wishlist, illustratori e gradate
-- [ ] Collector Lab completo (Album e Chase): oggi la voce in Home apre gli illustratori
+- [x] Collector Lab completo: hub, Album (griglia e raccoglitore) e Chase per set
+- [ ] Provare su Appetize album e chase
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
 - [ ] Iscrizione all'Apple Developer Program, poi la richiesta per lo Small Business Program (commissione al 15%)
