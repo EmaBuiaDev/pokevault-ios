@@ -23,6 +23,14 @@ import androidx.navigation.toRoute
 import com.emabuia.pokevault.data.Expansion
 import com.emabuia.pokevault.screens.ComingSoonScreen
 import com.emabuia.pokevault.screens.card.CardDetailScreen
+import com.emabuia.pokevault.screens.card.CardByApiIdScreen
+import com.emabuia.pokevault.screens.album.AlbumCollectionListScreen
+import com.emabuia.pokevault.screens.album.AlbumDetailScreen
+import com.emabuia.pokevault.screens.album.AlbumListScreen
+import com.emabuia.pokevault.screens.album.ChaseListScreen
+import com.emabuia.pokevault.screens.album.CreateAlbumScreen
+import com.emabuia.pokevault.screens.album.CreateGoalAlbumScreen
+import com.emabuia.pokevault.screens.album.GoalAlbumDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
@@ -71,6 +79,32 @@ object SettingsDestination
 
 @Serializable
 object GradedDestination
+
+@Serializable
+object CollectorLabDestination
+
+@Serializable
+object AlbumListDestination
+
+/** albumId null = album nuovo. */
+@Serializable
+data class CreateAlbumDestination(val albumId: String? = null)
+
+@Serializable
+data class AlbumDetailDestination(val albumId: String)
+
+@Serializable
+object ChaseListDestination
+
+@Serializable
+object CreateChaseDestination
+
+@Serializable
+data class ChaseDetailDestination(val goalAlbumId: String)
+
+/** Una carta aperta dall'id di collezione, album o chase ("ita:me05:4"). */
+@Serializable
+data class CardByApiIdDestination(val apiCardId: String)
 
 @Serializable
 object IllustratorsDestination
@@ -125,8 +159,7 @@ fun App() {
                                         "statistics" -> navController.selectTab(BottomTab.STATS)
                                         "pokedex" -> navController.selectTab(BottomTab.POKEDEX)
                                         "wishlist" -> navController.navigate(WishlistDestination)
-                                        // Del Collector Lab di Android per ora ci sono solo gli illustratori.
-                                        "collector_lab" -> navController.navigate(IllustratorsDestination)
+                                        "collector_lab" -> navController.navigate(CollectorLabDestination)
                                         "graded" -> navController.navigate(GradedDestination)
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
@@ -171,6 +204,75 @@ fun App() {
                                 onBack = { navController.popBackStack() },
                                 // Le frecce sostituiscono la carta, non la impilano: Indietro
                                 // torna alla griglia, non a ogni carta sfogliata.
+                                onOpenCard = { expansionId, cardId ->
+                                    navController.popBackStack()
+                                    navController.navigate(CardDetailDestination(expansionId, cardId))
+                                },
+                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
+                            )
+                        }
+                        composable<CollectorLabDestination> {
+                            // Album e chase stanno sull'account: come Carte e Stats, serve l'accesso.
+                            RequireLogin { _, _ ->
+                                AlbumListScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onCreateAlbum = { id -> navController.navigate(CreateAlbumDestination(id)) },
+                                    onAlbumClick = { id -> navController.navigate(AlbumDetailDestination(id)) },
+                                    onOpenAlbumList = { navController.navigate(AlbumListDestination) },
+                                    onOpenChaseList = { navController.navigate(ChaseListDestination) },
+                                    onOpenIllustrators = { navController.navigate(IllustratorsDestination) },
+                                    onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
+                                    onCreateChase = { navController.navigate(CreateChaseDestination) },
+                                    onChaseClick = { id -> navController.navigate(ChaseDetailDestination(id)) },
+                                )
+                            }
+                        }
+                        composable<AlbumListDestination> {
+                            AlbumCollectionListScreen(
+                                onBack = { navController.popBackStack() },
+                                onAlbumClick = { id -> navController.navigate(AlbumDetailDestination(id)) },
+                                onCreateAlbum = { id -> navController.navigate(CreateAlbumDestination(id)) },
+                                onPremiumRequired = {},
+                            )
+                        }
+                        composable<CreateAlbumDestination> { entry ->
+                            CreateAlbumScreen(
+                                onBack = { navController.popBackStack() },
+                                editAlbumId = entry.toRoute<CreateAlbumDestination>().albumId,
+                            )
+                        }
+                        composable<AlbumDetailDestination> { entry ->
+                            AlbumDetailScreen(
+                                albumId = entry.toRoute<AlbumDetailDestination>().albumId,
+                                onBack = { navController.popBackStack() },
+                                onCardClick = { card -> navController.navigate(CardByApiIdDestination(card.apiCardId)) },
+                            )
+                        }
+                        composable<ChaseListDestination> {
+                            ChaseListScreen(
+                                onBack = { navController.popBackStack() },
+                                onCreateChase = { navController.navigate(CreateChaseDestination) },
+                                onChaseClick = { id -> navController.navigate(ChaseDetailDestination(id)) },
+                                onPremiumRequired = {},
+                            )
+                        }
+                        composable<CreateChaseDestination> {
+                            CreateGoalAlbumScreen(
+                                onBack = { navController.popBackStack() },
+                                onSaved = { navController.popBackStack() },
+                                onPremiumRequired = {},
+                            )
+                        }
+                        composable<ChaseDetailDestination> { entry ->
+                            GoalAlbumDetailScreen(
+                                goalAlbumId = entry.toRoute<ChaseDetailDestination>().goalAlbumId,
+                                onBack = { navController.popBackStack() },
+                            )
+                        }
+                        composable<CardByApiIdDestination> { entry ->
+                            CardByApiIdScreen(
+                                apiCardId = entry.toRoute<CardByApiIdDestination>().apiCardId,
+                                onBack = { navController.popBackStack() },
                                 onOpenCard = { expansionId, cardId ->
                                     navController.popBackStack()
                                     navController.navigate(CardDetailDestination(expansionId, cardId))

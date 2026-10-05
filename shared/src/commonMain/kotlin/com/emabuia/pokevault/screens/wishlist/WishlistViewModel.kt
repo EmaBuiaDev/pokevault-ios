@@ -80,6 +80,21 @@ class WishlistViewModel(
         repository.create(validDraft(draft), firstCardIds = listOf(cardId))
     }
 
+    /** addCardsToWishlists di Android: lo stesso blocco di carte in piu' liste, col solo esito. */
+    fun addCardsToWishlists(listIds: Set<String>, cardIds: List<String>, onResult: (Boolean) -> Unit) {
+        if (listIds.isEmpty() || cardIds.isEmpty()) return onResult(false)
+        viewModelScope.launch {
+            val ok = try {
+                repository.addCards(listIds, cardIds)
+                true
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                false
+            }
+            onResult(ok)
+        }
+    }
+
     /** updateCardWishlists: quello che e' spuntato nel picker diventa la verita'. */
     fun setCardLists(cardId: String, target: Set<String>, onDone: () -> Unit) {
         val current = _state.value.listIdsWith(cardId)

@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PhotoAlbum
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -32,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.emabuia.pokevault.ui.theme.AppColors
 import com.emabuia.pokevault.ui.theme.AppMotion
+import com.emabuia.pokevault.util.ImageUrlUtils
+import coil3.compose.AsyncImage
 
 /*
  * I pezzi di LabComponents.kt dell'app Android che servono agli illustratori,
@@ -264,6 +268,55 @@ internal fun CompletionBanner(
         Column {
             Text(title, color = AppColors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
             Text(subtitle, color = AppColors.textSecondary, fontSize = 12.sp)
+        }
+    }
+}
+
+/**
+ * Le prime carte dell'album, sfalsate come in mano (CoverCollage di Android).
+ *
+ * Una copertina sola non dice se dentro c'e' una carta o trenta; tre carte
+ * accennate lo dicono a colpo d'occhio.
+ */
+@Composable
+internal fun CoverCollage(
+    urls: List<String>,
+    modifier: Modifier = Modifier,
+    gradient: List<Color>,
+    slotSize: Dp = 64.dp
+) {
+    Box(modifier = modifier.height(slotSize).width(slotSize + 22.dp)) {
+        if (urls.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .size(slotSize)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.linearGradient(gradient)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PhotoAlbum, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+            }
+            return@Box
+        }
+
+        // Disegnate al contrario: la prima carta deve restare sopra le altre.
+        urls.take(3).reversed().forEachIndexed { reverseIndex, url ->
+            val index = urls.take(3).lastIndex - reverseIndex
+            Box(
+                modifier = Modifier
+                    .padding(start = (index * 11).dp)
+                    .size(slotSize)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AppColors.background)
+                    .border(1.dp, AppColors.background, RoundedCornerShape(12.dp))
+            ) {
+                AsyncImage(
+                    model = ImageUrlUtils.safeProxiedImageUrl(url),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }

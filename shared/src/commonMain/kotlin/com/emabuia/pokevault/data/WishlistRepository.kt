@@ -93,6 +93,14 @@ class WishlistRepository(
 
     suspend fun delete(id: String) = write { uid, token -> writes.deleteDocuments(uid, token, "wishlists", listOf(id)) }
 
+    /**
+     * addCardsToWishlist su piu' liste: una scrittura per lista, non per carta
+     * (le mancanti di un chase vanno in wishlist tutte insieme).
+     */
+    suspend fun addCards(listIds: Collection<String>, cardIds: List<String>) = write { uid, token ->
+        listIds.forEach { writes.changeArray(uid, token, "wishlists", it, "cardIds", cardIds, add = true) }
+    }
+
     /** removeCardFromWishlist (arrayRemove). */
     suspend fun removeCard(listId: String, cardId: String) = write { uid, token ->
         writes.changeArray(uid, token, "wishlists", listId, "cardIds", listOf(cardId), add = false)

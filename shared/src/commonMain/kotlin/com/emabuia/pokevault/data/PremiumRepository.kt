@@ -50,5 +50,7 @@ class PremiumRepository(
     companion object {
         /** PremiumManager.FREE_WISHLIST_LIMIT su Android. */
         const val FREE_WISHLIST_LIMIT = 1
+        const val FREE_ALBUM_LIMIT = 1
+        const val FREE_GOAL_ALBUM_LIMIT = 1
     }
 }

@@ -79,9 +79,11 @@ class IllustratorRepository(
                 cached?.data ?: throw e
             }
         }
-        val entries = Illustrators.entries(response.illustrators.map { it.name to it.cardIds }) { imageKey ->
-            Card(cardId = imageKey).italianId()
-        }
+        val entries = Illustrators.entries(
+            response.illustrators.map { it.name to it.cardIds },
+            toApiId = { imageKey -> Card(cardId = imageKey).italianId() },
+            toPreviewUrl = { imageKey -> Card(cardId = imageKey).imageUrl(baseUrl) },
+        )
         IllustratorIndex(entries, response.cardsWithoutIllustrator).also { index = it }
     }
 

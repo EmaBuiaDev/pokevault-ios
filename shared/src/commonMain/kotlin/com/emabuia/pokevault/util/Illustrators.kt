@@ -115,6 +115,8 @@ data class IllustratorEntry(
     val rawNames: List<String>,
     val cardApiIds: List<String>,
     val expansionCount: Int,
+    /** Le prime tre carte, per le anteprime del Collector Lab. */
+    val previewUrls: List<String> = emptyList(),
 )
 
 /** Una riga della lista illustratori, con l'avanzamento gia' calcolato. */
@@ -125,6 +127,7 @@ data class IllustratorRow(
     val total: Int,
     val expansionCount: Int,
     val isFollowed: Boolean,
+    val previewUrls: List<String> = emptyList(),
 ) {
     /** CollectorLab.fillPercent su Android. */
     val percent: Float get() = if (total <= 0) 0f else (owned.toFloat() / total.toFloat() * 100f).coerceIn(0f, 100f)
@@ -142,7 +145,11 @@ object Illustrators {
      * persona, come italianIllustratorIndex su Android. [toApiId] trasforma
      * "DP1_IT_1.png" in "ita:dp1:1", null se la chiave non si legge.
      */
-    fun entries(raw: List<Pair<String, List<String>>>, toApiId: (String) -> String?): List<IllustratorEntry> {
+    fun entries(
+        raw: List<Pair<String, List<String>>>,
+        toApiId: (String) -> String?,
+        toPreviewUrl: (String) -> String? = { null },
+    ): List<IllustratorEntry> {
         class Bucket {
             val rawNames = linkedSetOf<String>()
             val displayNames = linkedMapOf<String, Int>()
@@ -170,6 +177,7 @@ object Illustrators {
                 // Dai cardId e non dall'expansionCount della rotta, che e' per
                 // nome grezzo: sommarlo conterebbe due volte i set in comune.
                 expansionCount = apiIds.map { it.split(':')[1] }.distinct().size,
+                previewUrls = bucket.cardIds.take(3).mapNotNull(toPreviewUrl),
             )
         }
     }
@@ -184,6 +192,7 @@ object Illustrators {
                 total = entry.cardApiIds.size,
                 expansionCount = entry.expansionCount,
                 isFollowed = entry.key in followedKeys,
+                previewUrls = entry.previewUrls,
             )
         }
 

@@ -10,6 +10,9 @@ import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.IllustratorRepository
+import com.emabuia.pokevault.data.CollectorRepository
+import com.emabuia.pokevault.screens.album.AlbumViewModel
+import com.emabuia.pokevault.screens.album.GoalAlbumViewModel
 import com.emabuia.pokevault.screens.illustrator.IllustratorViewModel
 import com.emabuia.pokevault.screens.graded.GradedCardsViewModel
 import com.emabuia.pokevault.data.KtorCatalogApi
@@ -68,6 +71,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
     single { PremiumRepository(get(), get(), now = ::nowMillis) }
     single { IllustratorRepository(get(), get(named(CACHE)), get(), get(), get()) }
+    single { CollectorRepository(get(), get(), get(named(CACHE)), get()) }
 }
 
 val viewModelModule = module {
@@ -80,6 +84,8 @@ val viewModelModule = module {
     factoryOf(::SettingsViewModel)
     factoryOf(::IllustratorViewModel)
     factoryOf(::GradedCardsViewModel)
+    factoryOf(::AlbumViewModel)
+    factoryOf(::GoalAlbumViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(
