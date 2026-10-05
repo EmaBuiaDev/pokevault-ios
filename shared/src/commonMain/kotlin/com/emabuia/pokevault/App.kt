@@ -27,6 +27,8 @@ import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
+import com.emabuia.pokevault.screens.illustrator.IllustratorDetailScreen
+import com.emabuia.pokevault.screens.illustrator.IllustratorListScreen
 import com.emabuia.pokevault.screens.settings.SettingsScreen
 import com.emabuia.pokevault.screens.stats.StatsScreen
 import com.emabuia.pokevault.screens.wishlist.WishlistScreen
@@ -65,6 +67,12 @@ object WishlistDestination
 
 @Serializable
 object SettingsDestination
+
+@Serializable
+object IllustratorsDestination
+
+@Serializable
+data class IllustratorDetailDestination(val key: String)
 
 /** Una sezione dell'app Android che su iOS non c'e' ancora. */
 @Serializable
@@ -113,6 +121,8 @@ fun App() {
                                         "statistics" -> navController.selectTab(BottomTab.STATS)
                                         "pokedex" -> navController.selectTab(BottomTab.POKEDEX)
                                         "wishlist" -> navController.navigate(WishlistDestination)
+                                        // Del Collector Lab di Android per ora ci sono solo gli illustratori.
+                                        "collector_lab" -> navController.navigate(IllustratorsDestination)
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
                                 },
@@ -160,6 +170,20 @@ fun App() {
                                     navController.popBackStack()
                                     navController.navigate(CardDetailDestination(expansionId, cardId))
                                 },
+                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
+                            )
+                        }
+                        composable<IllustratorsDestination> {
+                            IllustratorListScreen(
+                                onBack = { navController.popBackStack() },
+                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
+                            )
+                        }
+                        composable<IllustratorDetailDestination> { entry ->
+                            IllustratorDetailScreen(
+                                illustratorKey = entry.toRoute<IllustratorDetailDestination>().key,
+                                onBack = { navController.popBackStack() },
+                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
                             )
                         }
                         composable<SettingsDestination> {

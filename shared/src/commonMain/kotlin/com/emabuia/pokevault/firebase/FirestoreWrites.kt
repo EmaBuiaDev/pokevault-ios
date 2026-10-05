@@ -145,6 +145,20 @@ class FirestoreWrites(
         return id
     }
 
+    /**
+     * Un documento con l'id scelto da chi scrive, creato o rimpiazzato per
+     * intero: docRef.set(map) su Android (followed_illustrators usa la chiave
+     * dell'artista come id).
+     */
+    suspend fun setDocument(uid: String, idToken: String, collection: String, id: String, fields: Map<String, Any?>) {
+        commit(idToken, buildJsonObject {
+            putJsonObject("update") {
+                put("name", "$database/documents/users/$uid/$collection/$id")
+                put("fields", toFields(fields))
+            }
+        })
+    }
+
     /** Aggiorna solo i campi dati di un documento esistente (docRef.update(map)). */
     suspend fun updateDocument(uid: String, idToken: String, collection: String, id: String, fields: Map<String, Any?>) {
         commit(idToken, buildJsonObject {

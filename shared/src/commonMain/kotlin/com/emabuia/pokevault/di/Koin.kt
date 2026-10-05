@@ -9,6 +9,8 @@ import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.FileCache
 import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.PremiumRepository
+import com.emabuia.pokevault.data.IllustratorRepository
+import com.emabuia.pokevault.screens.illustrator.IllustratorViewModel
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
@@ -64,6 +66,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
     single { PremiumRepository(get(), get(), now = ::nowMillis) }
+    single { IllustratorRepository(get(), get(named(CACHE)), get(), get(), get()) }
 }
 
 val viewModelModule = module {
@@ -74,6 +77,7 @@ val viewModelModule = module {
     factoryOf(::StatsViewModel)
     factoryOf(::WishlistViewModel)
     factoryOf(::SettingsViewModel)
+    factoryOf(::IllustratorViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(

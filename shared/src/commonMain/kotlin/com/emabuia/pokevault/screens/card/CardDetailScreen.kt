@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -65,6 +67,8 @@ import com.emabuia.pokevault.data.model.CardOptions
 import com.emabuia.pokevault.ui.components.CardVariants
 import com.emabuia.pokevault.ui.components.CollectionActionBar
 import com.emabuia.pokevault.ui.components.DetailInfoRow
+import com.emabuia.pokevault.util.IllustratorNames
+import androidx.compose.material.icons.filled.ChevronRight
 import com.emabuia.pokevault.ui.components.FormField
 import com.emabuia.pokevault.ui.components.InfoPill
 import com.emabuia.pokevault.ui.components.MarketLinkPill
@@ -95,6 +99,7 @@ fun CardDetailScreen(
     cardId: String,
     onBack: () -> Unit,
     onOpenCard: (expansionId: String, cardId: String) -> Unit,
+    onIllustratorClick: (String) -> Unit = {},
 ) {
     val viewModel = koinViewModel<CardDetailViewModel>(key = "$expansionId/$cardId") {
         parametersOf(expansionId, cardId)
@@ -173,7 +178,7 @@ fun CardDetailScreen(
                     color = AppColors.textSecondary,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
                 )
-                is CardDetailState.Ready -> CardDetailContent(current, onOpenCard) {
+                is CardDetailState.Ready -> CardDetailContent(current, onOpenCard, onIllustratorClick) {
                     if (!ownership.signedIn) {
                         Text(
                             "Accedi dalla scheda Carte per aggiungerla alla tua collezione.",
@@ -343,6 +348,7 @@ private fun AddToCollectionForm(
 private fun CardDetailContent(
     state: CardDetailState.Ready,
     onOpenCard: (String, String) -> Unit,
+    onIllustratorClick: (String) -> Unit,
     collectionSection: @Composable () -> Unit,
 ) {
     val card = state.card
@@ -432,7 +438,25 @@ private fun CardDetailContent(
         Spacer(Modifier.height(16.dp))
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             card.stage?.takeIf { it.isNotBlank() }?.let { DetailInfoRow("Stadio", stageLabel(it)) }
-            card.illustratore?.takeIf { it.isNotBlank() }?.let { DetailInfoRow("Illustratore", it) }
+            card.illustratore?.takeIf { it.isNotBlank() }?.let { raw ->
+                // Il nome porta alla pagina dell'artista, come la pastiglia su Android (prima chiave del credito).
+                val key = IllustratorNames.keysOf(raw).firstOrNull()
+                if (key == null) {
+                    DetailInfoRow(AppLocale.illustrator, raw)
+                } else {
+                    Row(
+                        Modifier.fillMaxWidth().clickable { onIllustratorClick(key) },
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(AppLocale.illustrator, color = AppColors.textMuted, fontSize = 13.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(raw, color = AppColors.purple, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Icon(Icons.Default.ChevronRight, contentDescription = null, tint = AppColors.purple, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
             card.number?.let { DetailInfoRow("Numero", it) }
         }
         Spacer(Modifier.height(32.dp))

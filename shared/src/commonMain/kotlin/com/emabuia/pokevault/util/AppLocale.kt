@@ -16,6 +16,7 @@ object AppLocale {
     val other: String get() = "Altro"
     val unknownError: String get() = "Errore sconosciuto"
     val back: String get() = "Indietro"
+    val retry: String get() = "Riprova"
     val cancel: String get() = "Annulla"
 
     // Impostazioni: gli stessi testi dell'app Android.
@@ -167,6 +168,36 @@ object AppLocale {
     val wishlistRemoveCardTitle: String get() = "Rimuovere carta dalla wishlist?"
     val wishlistFreeLimit: String get() = "Con l'account gratuito puoi tenere una wishlist. Con Premium ne crei quante vuoi."
     val save: String get() = "Salva"
+
+    // Sezione illustratori: gli stessi testi dell'app Android.
+    val illustrator: String get() = "Illustratore"
+    val illustratorsTitle: String get() = "Illustratori"
+    val illustratorsSubtitle: String get() = "Colleziona per artista"
+    fun illustratorsCount(artists: Int): String = "$artists artisti"
+    fun illustratorsSets(sets: Int): String = "$sets espansioni"
+    val illustratorsFollowed: String get() = "Seguiti"
+    val illustratorsAll: String get() = "Tutti"
+    val illustratorFollow: String get() = "Segui"
+    val illustratorUnfollow: String get() = "Smetti di seguire"
+    val illustratorSearchHint: String get() = "Cerca un illustratore..."
+    val illustratorSortClosest: String get() = "Quasi fatti"
+    val illustratorSortCards: String get() = "Più carte"
+    val illustratorSortName: String get() = "A-Z"
+    val illustratorFilterMissing: String get() = "Mancanti"
+    val illustratorFilterOwned: String get() = "Possedute"
+    fun illustratorCardsAndSets(cards: Int, sets: Int): String = "$cards carte · $sets espansioni"
+    val illustratorsEmptyTitle: String get() = "Nessun illustratore"
+    val illustratorsEmptySubtitle: String get() = "Il catalogo non è raggiungibile in questo momento."
+    val illustratorsNoMatch: String get() = "Nessun illustratore con questo nome"
+    fun illustratorsCatalogGap(cards: Int): String =
+        "$cards carte del catalogo non dicono chi le ha disegnate e non compaiono qui."
+    fun illustratorsCollectionGap(cards: Int): String =
+        "$cards carte della tua collezione non sono collegate al catalogo italiano e non contano nei progressi."
+    val illustratorCompleteTitle: String get() = "Collezione completa!"
+    fun illustratorCompleteSubtitle(name: String): String = "Hai tutte le carte disegnate da $name."
+    val searchCards: String get() = "Cerca carte"
+    val chaseStatOwned: String get() = "Possedute:"
+    val chaseStatMissing: String get() = "Mancanti:"
 
     val search: String get() = "Cerca..."
     val searchCard: String get() = "Cerca una carta"
