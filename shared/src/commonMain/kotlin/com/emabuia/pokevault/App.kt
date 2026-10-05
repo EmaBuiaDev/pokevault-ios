@@ -27,6 +27,7 @@ import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
+import com.emabuia.pokevault.screens.graded.GradedCardsScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorDetailScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorListScreen
 import com.emabuia.pokevault.screens.settings.SettingsScreen
@@ -67,6 +68,9 @@ object WishlistDestination
 
 @Serializable
 object SettingsDestination
+
+@Serializable
+object GradedDestination
 
 @Serializable
 object IllustratorsDestination
@@ -123,6 +127,7 @@ fun App() {
                                         "wishlist" -> navController.navigate(WishlistDestination)
                                         // Del Collector Lab di Android per ora ci sono solo gli illustratori.
                                         "collector_lab" -> navController.navigate(IllustratorsDestination)
+                                        "graded" -> navController.navigate(GradedDestination)
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
                                 },
@@ -172,6 +177,9 @@ fun App() {
                                 },
                                 onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
                             )
+                        }
+                        composable<GradedDestination> {
+                            RequireLogin { _, _ -> GradedCardsScreen(onBack = { navController.popBackStack() }) }
                         }
                         composable<IllustratorsDestination> {
                             IllustratorListScreen(

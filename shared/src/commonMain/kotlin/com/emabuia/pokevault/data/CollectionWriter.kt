@@ -101,6 +101,26 @@ class CollectionWriter(
         collection.notifyChanged()
     }
 
+    /**
+     * Segna una stampa come gradata, o la toglie dalle gradate: il pannello
+     * "Carta gradata" del dettaglio su Android. Come li', togliendo la spunta
+     * voto ed ente restano scritti sul documento (e tornano rimettendola).
+     */
+    suspend fun setGrading(print: PokemonCard, isGraded: Boolean, grade: Float?, company: String) {
+        if (isGraded) {
+            require(grade != null && grade > 0f && grade <= 10f) { "manca il voto" }
+            require(company.isNotBlank()) { "manca l'ente" }
+        }
+        val (uid, token) = credentials()
+        val fields = if (isGraded) {
+            mapOf("isGraded" to true, "grade" to grade, "gradingCompany" to company.trim())
+        } else {
+            mapOf("isGraded" to false)
+        }
+        writes.updateCard(uid, token, print.id, fields)
+        collection.notifyChanged()
+    }
+
     /** Toglie un documento (deleteCard su Android). */
     suspend fun deletePrint(print: PokemonCard) {
         val (uid, token) = credentials()

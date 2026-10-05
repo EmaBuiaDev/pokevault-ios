@@ -234,6 +234,20 @@ class CollectionViewModel(
 
     fun deletePrint(print: PokemonCard) = write { writer.deletePrint(print) }
 
+    /** Il pannello del voto: a chi lo chiude null se e' andato, se no il motivo. */
+    fun saveGrading(print: PokemonCard, isGraded: Boolean, grade: Float?, company: String, onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            val error = try {
+                writer.setGrading(print, isGraded, grade, company)
+                null
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                e.message ?: ""
+            }
+            onDone(error)
+        }
+    }
+
     private fun write(block: suspend () -> Unit) {
         viewModelScope.launch {
             try {

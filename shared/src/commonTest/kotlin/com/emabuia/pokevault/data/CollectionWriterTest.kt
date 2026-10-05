@@ -26,6 +26,7 @@ import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -182,5 +183,33 @@ class CollectionWriterTest {
         writer().deleteAllPrints("ita:me05:4")
         val deleted = commits.mapNotNull { it["delete"]?.jsonPrimitive?.content?.substringAfterLast('/') }
         assertEquals(listOf("doc-holo", "doc-rev"), deleted)
+    }
+
+    @Test
+    fun aGradedPrintWritesOnlyTheGradingFields() = runTest {
+        val print = PokemonCard(id = "doc-holo", name = "Lurantis-ex", quantity = 1)
+        writer().setGrading(print, isGraded = true, grade = 9.5f, company = "PSA")
+
+        val update = commits.single()
+        assertTrue(update["update"]!!.jsonObject["name"]!!.jsonPrimitive.content.endsWith("/cards/doc-holo"))
+        val mask = update["updateMask"]!!.jsonObject["fieldPaths"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertEquals(listOf("isGraded", "grade", "gradingCompany"), mask)
+        assertEquals("true", update.field("isGraded")["booleanValue"]!!.jsonPrimitive.content)
+        assertEquals("9.5", update.field("grade")["doubleValue"]!!.jsonPrimitive.content)
+        assertEquals("PSA", update.str("gradingCompany"))
+    }
+
+    @Test
+    fun unmarkingKeepsGradeAndCompanyAndMissingFieldsWriteNothing() = runTest {
+        val print = PokemonCard(id = "doc-holo", name = "Lurantis-ex", grade = 9f, gradingCompany = "PSA").also { it.isGraded = true }
+        val w = writer()
+        w.setGrading(print, isGraded = false, grade = null, company = "")
+        // Come su Android: si spegne solo la spunta, voto ed ente restano sul documento.
+        assertEquals(listOf("isGraded"), commits.single()["updateMask"]!!.jsonObject["fieldPaths"]!!.jsonArray.map { it.jsonPrimitive.content })
+
+        commits.clear()
+        assertFailsWith<IllegalArgumentException> { w.setGrading(print, isGraded = true, grade = null, company = "PSA") }
+        assertFailsWith<IllegalArgumentException> { w.setGrading(print, isGraded = true, grade = 9f, company = " ") }
+        assertTrue(commits.isEmpty())
     }
 }

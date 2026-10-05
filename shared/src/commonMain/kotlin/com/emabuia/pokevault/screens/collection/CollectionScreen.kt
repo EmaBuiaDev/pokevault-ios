@@ -49,6 +49,10 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.emabuia.pokevault.data.Session
 import com.emabuia.pokevault.ui.components.QuantityStepper
+import com.emabuia.pokevault.ui.graded.GradingDialog
+import com.emabuia.pokevault.ui.graded.companyLabel
+import com.emabuia.pokevault.util.GradedLab
+import androidx.compose.material.icons.filled.WorkspacePremium
 import com.emabuia.pokevault.ui.components.RarityMarkWithLabel
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.ui.window.Dialog
@@ -268,6 +272,7 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit, onAddCard: () -> Un
             group = group,
             onQuantity = viewModel::setQuantity,
             onDelete = viewModel::deletePrint,
+            onGrading = viewModel::saveGrading,
             onDismiss = { selectedKey = null },
         )
     }
@@ -1429,11 +1434,21 @@ private fun CardGroupDialog(
     group: CardGroup,
     onQuantity: (PokemonCard, Int) -> Unit,
     onDelete: (PokemonCard) -> Unit,
+    onGrading: (PokemonCard, Boolean, Float?, String, (String?) -> Unit) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val card = group.representative
     // Il cestino chiede conferma con un secondo tocco: si toccano dati veri.
     var pendingDelete by remember { mutableStateOf<String?>(null) }
+    // La stampa di cui si sta scrivendo ente e voto.
+    var grading by remember { mutableStateOf<PokemonCard?>(null) }
+    grading?.let { print ->
+        GradingDialog(
+            print = print,
+            onSave = { isGraded, grade, company, onResult -> onGrading(print, isGraded, grade, company, onResult) },
+            onDismiss = { grading = null },
+        )
+    }
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(16.dp), color = AppColors.surface) {
             Column(
@@ -1466,6 +1481,14 @@ private fun CardGroupDialog(
                             .background(AppColors.card)
                             .padding(10.dp)
                     ) {
+                        if (print.isGraded) {
+                            Text(
+                                "${companyLabel(GradedLab.companyKey(print))} ${GradedLab.formatGrade(print.grade)}",
+                                color = AppColors.gold,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 listOf(CardVariants.label(print.variant), print.language, print.condition)
@@ -1489,6 +1512,14 @@ private fun CardGroupDialog(
                                 )
                             }
                             Spacer(Modifier.width(8.dp))
+                            // Il voto della stampa: oro se e' gia' una slab, come le gradate.
+                            IconButton(onClick = { grading = print }) {
+                                Icon(
+                                    Icons.Default.WorkspacePremium,
+                                    contentDescription = AppLocale.gradedCardSection,
+                                    tint = if (print.isGraded) AppColors.gold else AppColors.textMuted,
+                                )
+                            }
                             if (pendingDelete == print.id) {
                                 TextButton(onClick = { pendingDelete = null; onDelete(print) }) {
                                     Text("Togli?", color = AppColors.red, fontWeight = FontWeight.Bold)

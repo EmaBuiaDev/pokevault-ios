@@ -11,6 +11,7 @@ import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.IllustratorRepository
 import com.emabuia.pokevault.screens.illustrator.IllustratorViewModel
+import com.emabuia.pokevault.screens.graded.GradedCardsViewModel
 import com.emabuia.pokevault.data.KtorCatalogApi
 import com.emabuia.pokevault.firebase.FirebaseAuthApi
 import com.emabuia.pokevault.firebase.FirestoreApi
@@ -78,6 +79,7 @@ val viewModelModule = module {
     factoryOf(::WishlistViewModel)
     factoryOf(::SettingsViewModel)
     factoryOf(::IllustratorViewModel)
+    factoryOf(::GradedCardsViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(
