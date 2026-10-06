@@ -51,7 +51,7 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Login con email e password (REST), provato su Appetize con due account veri il 04/10/2026
 - [x] Login con Google (OAuth con PKCE in ASWebAuthenticationSession, poi signInWithIdp): stesso account di Android
 - [ ] Sign in with Apple (obbligatorio sull'App Store se c'è Google): serve l'account sviluppatore
-- [ ] Refresh token nel Portachiavi iOS invece che in un file
+- [x] Sessione (refresh token compreso) nel Portachiavi iOS; quella vecchia su file si sposta da sola, e dopo una reinstallazione non si rientra con l'account di prima
 - [x] Collezione in sola lettura da Firestore: divisa per espansione, totali, stampe raggruppate come su Android (collectionCardKey), offline
 - [x] Aggiungere carte dal dettaglio (stampa, copie, condizione, lingua), cambiare copie e togliere stampe dalla collezione: stessi documenti di Android, provati contro un Firestore finto
 - [x] Eliminazione dell'account dall'app (obbligatoria per Apple): nello stesso ordine di Android, da provare con un account usa e getta

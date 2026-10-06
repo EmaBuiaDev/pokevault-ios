@@ -18,6 +18,8 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.io.files.Path
 import kotlinx.io.files.SystemFileSystem
 import kotlinx.io.files.SystemTemporaryDirectory
+import kotlinx.io.buffered
+import kotlinx.io.readString
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -84,10 +86,19 @@ class AuthRepositoryTest {
         else -> null
     }
 
+    /** Il Portachiavi finto: in memoria, e non si cancella con la cartella dell'app. */
+    private val keychain = object : SecureStore {
+        val items = mutableMapOf<String, String>()
+        override fun read(key: String) = items[key]
+        override fun write(key: String, value: String) { items[key] = value }
+        override fun remove(key: String) { items.remove(key) }
+    }
+
     private fun repository() = AuthRepository(
         auth = FirebaseAuthApi(client, apiKey = "test-key"),
         firestore = FirestoreApi(client, projectId = "test-project"),
         store = FileCache(dir, now = { clock }),
+        secure = keychain,
         now = { clock },
     )
 
@@ -144,6 +155,45 @@ class AuthRepositoryTest {
         assertNull(repository.validIdToken())
         assertNull(repository.session.value)
         assertNull(repository().session.value)
+    }
+
+    @Test
+    fun theSessionLivesInTheKeychainNotInAFile() = runTest {
+        profileExists = true
+        repository().login("ash@gmail.com", "pikachu")
+        assertTrue("refresh-1" in keychain.items.getValue("auth_session"))
+        val files = SystemFileSystem.list(Path(dir)).map { SystemFileSystem.source(it).buffered().use { s -> s.readString() } }
+        assertTrue(files.none { "refresh-1" in it })
+
+        repository().logout()
+        assertTrue(keychain.items.isEmpty())
+        assertNull(repository().session.value)
+    }
+
+    @Test
+    fun theOldFileSessionMovesToTheKeychain() = runTest {
+        // Come la salvavano le versioni di prova fino al 05/10/2026.
+        FileCache(dir).write(
+            "session", Session.serializer(),
+            Session("uid-1", "ash@gmail.com", "Ash", "id-1", "refresh-1", expiresAt = clock + 3_600_000),
+        )
+        val repository = repository()
+        assertEquals("Ash", repository.session.value?.name)
+        assertEquals("id-1", repository.validIdToken())
+        assertTrue("refresh-1" in keychain.items.getValue("auth_session"))
+        assertNull(FileCache(dir).read("session", Session.serializer()))
+        assertEquals("Ash", repository().session.value?.name)
+    }
+
+    @Test
+    fun aReinstallDoesNotReopenThePreviousAccount() = runTest {
+        profileExists = true
+        repository().login("ash@gmail.com", "pikachu")
+
+        // Disinstallazione: iOS cancella la cartella dell'app ma non il Portachiavi.
+        cleanUp()
+        assertNull(repository().session.value)
+        assertTrue(keychain.items.isEmpty())
     }
 
     private companion object {

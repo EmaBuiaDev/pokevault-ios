@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 
 /** L'utente collegato. Resta sul telefono fra un avvio e l'altro. */
 @Serializable
@@ -26,18 +28,18 @@ data class Session(
  * Accesso e sessione: lo stesso giro di FirebaseAuthManager su Android, sulle
  * REST API di Firebase.
  *
- * La sessione sta in un file nella cartella dati dell'app (non nelle cache,
- * che iOS puo' svuotare: sarebbe un logout a sorpresa). TODO prima della
- * pubblicazione: spostare il refresh token nel Portachiavi di iOS, dove lo
- * tiene l'SDK Firebase.
+ * La sessione, col refresh token, sta in [secure]: il Portachiavi su iOS,
+ * dove la tiene anche l'SDK Firebase. In [store] (i dati dell'app, che iOS
+ * non svuota) resta solo il segno che l'app e' installata.
  */
 class AuthRepository(
     private val auth: FirebaseAuthApi,
     private val firestore: FirestoreApi,
     private val store: FileCache,
+    private val secure: SecureStore = FileSecureStore(store),
     private val now: () -> Long,
 ) {
-    private val _session = MutableStateFlow(store.read(KEY_SESSION, Session.serializer())?.data)
+    private val _session = MutableStateFlow(restore())
     val session: StateFlow<Session?> = _session.asStateFlow()
 
     private val refreshMutex = Mutex()
@@ -60,8 +62,28 @@ class AuthRepository(
     suspend fun resetPassword(email: String) = auth.sendPasswordReset(email)
 
     fun logout() {
-        store.remove(KEY_SESSION)
+        secure.remove(KEY_SECURE_SESSION)
         _session.value = null
+    }
+
+    /**
+     * La sessione all'avvio. Quella delle versioni di prova, che stava in un
+     * file, passa nel Portachiavi. Il Portachiavi invece sopravvive alla
+     * disinstallazione: se manca il segno dell'installazione l'app e' appena
+     * stata reinstallata, e la sessione vecchia si butta (niente accesso a
+     * sorpresa con l'account di prima).
+     */
+    private fun restore(): Session? {
+        val legacy = store.read(KEY_SESSION, Session.serializer())?.data
+        if (legacy != null) {
+            secure.write(KEY_SECURE_SESSION, json.encodeToString(Session.serializer(), legacy))
+            store.remove(KEY_SESSION)
+        } else if (store.read(KEY_INSTALLED, Boolean.serializer()) == null) {
+            secure.remove(KEY_SECURE_SESSION)
+        }
+        if (store.read(KEY_INSTALLED, Boolean.serializer()) == null) store.write(KEY_INSTALLED, Boolean.serializer(), true)
+        val saved = secure.read(KEY_SECURE_SESSION) ?: return null
+        return runCatching { json.decodeFromString(Session.serializer(), saved) }.getOrNull()
     }
 
     /**
@@ -114,7 +136,7 @@ class AuthRepository(
     }
 
     private fun save(session: Session): Session {
-        store.write(KEY_SESSION, Session.serializer(), session)
+        secure.write(KEY_SECURE_SESSION, json.encodeToString(Session.serializer(), session))
         _session.value = session
         return session
     }
@@ -122,7 +144,11 @@ class AuthRepository(
     private fun expiry(tokens: AuthTokens) = now() + (tokens.expiresIn.toLongOrNull() ?: 3600L) * 1000
 
     private companion object {
+        /** Il file della sessione nelle versioni di prova fino al 05/10/2026. */
         const val KEY_SESSION = "session"
+        const val KEY_SECURE_SESSION = "auth_session"
+        const val KEY_INSTALLED = "installed"
+        val json = Json { ignoreUnknownKeys = true }
         const val FIVE_MINUTES = 5L * 60 * 1000
     }
 }

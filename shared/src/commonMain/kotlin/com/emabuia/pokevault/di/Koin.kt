@@ -7,6 +7,7 @@ import com.emabuia.pokevault.data.CollectionRepository
 import com.emabuia.pokevault.data.AccountDeleter
 import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.FileCache
+import com.emabuia.pokevault.data.platformSecureStore
 import com.emabuia.pokevault.data.WishlistRepository
 import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.IllustratorRepository
@@ -62,7 +63,8 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { FirebaseAuthApi(get()) }
     single { FirestoreApi(get()) }
     single { GoogleSignIn(get(), platformGoogleAuthLauncher()) }
-    single { AuthRepository(get(), get(), get(named(DATA)), now = ::nowMillis) }
+    single { platformSecureStore(get(named(DATA))) }
+    single { AuthRepository(get(), get(), get(named(DATA)), secure = get(), now = ::nowMillis) }
     single { CollectionRepository(get(), get(), get(named(CACHE))) }
     single { FirestoreWrites(get()) }
     single { CollectionWriter(get(), get(), get()) }
