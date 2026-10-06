@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -68,9 +70,8 @@ import org.koin.compose.viewmodel.koinViewModel
  * Il Deck Lab: ui/deck/DeckLabScreen.kt di Android, la scheda "I Miei Deck".
  *
  * Su iOS per ora: elenco con i filtri, dettaglio, elimina, duplica,
- * esporta, e l'editor per creare e modificare. Mancano l'import da testo e le
- * schede Meta Deck e Win Tournament: le parti qui sotto sono quelle di
- * Android, il resto si aggiunge nel prossimo giro.
+ * esporta, l'editor e l'import da testo. Mancano le schede Meta Deck e Win
+ * Tournament: le parti qui sotto sono quelle di Android.
  *
  * [onCardClick] riceve l'id del catalogo ("ita:..."), non quello del
  * documento: su iOS il dettaglio di una carta si apre da li'.
@@ -89,6 +90,7 @@ fun DeckLabScreen(
     var showSheet by remember { mutableStateOf(false) }
     var showDiscardDeckDialog by remember { mutableStateOf(false) }
     var showNewDeckSourceDialog by remember { mutableStateOf(false) }
+    var showImportDialog by remember { mutableStateOf(false) }
     val deckScope = rememberCoroutineScope()
 
     /** C'e' del lavoro che uno swipe distruggerebbe. */
@@ -165,6 +167,25 @@ fun DeckLabScreen(
         },
         floatingActionButton = {
             if (selectedDeck == null) {
+              Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+              ) {
+                // Bottone Importa
+                SmallFloatingActionButton(
+                    onClick = {
+                        if (viewModel.canCreateDeck()) {
+                            showImportDialog = true
+                        } else {
+                            showPremiumDeckDialog = true
+                        }
+                    },
+                    containerColor = AppColors.purple,
+                    contentColor = AppColors.textPrimary,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.FileDownload, contentDescription = AppLocale.importDeck)
+                }
                 ExtendedFloatingActionButton(
                     onClick = {
                         if (viewModel.canCreateDeck()) {
@@ -182,6 +203,7 @@ fun DeckLabScreen(
                     icon = { Icon(Icons.Default.Add, contentDescription = null) },
                     text = { Text(AppLocale.createNewDeck) }
                 )
+              }
             }
         }
     ) { padding ->
@@ -423,6 +445,45 @@ fun DeckLabScreen(
                 },
                 onDismiss = { showNewDeckSourceDialog = false }
             )
+        }
+
+        // Importa da testo
+        if (showImportDialog) {
+            DeckImportDialog(
+                onDismiss = { showImportDialog = false },
+                onImport = { text ->
+                    viewModel.importFromText(text)
+                    showImportDialog = false
+                    // Il passo dopo (mancanti, riepilogo) e' sempre di ImportResultDialog.
+                }
+            )
+        }
+
+        // Import: prima la scelta su dove finiscono le carte che non possiedi,
+        // poi il riepilogo. Due momenti diversi, come su Android.
+        val importResult = viewModel.importResult
+        if (importResult != null) {
+            if (viewModel.isImportSourceChoicePending) {
+                DeckCardSourceDialog(
+                    prompt = AppLocale.deckSourceQuestion(
+                        importResult.missingMetaDeckCards.sumOf { it.qty }
+                    ),
+                    isWorking = viewModel.isAddingMissingCards,
+                    onChoose = { source -> viewModel.applyImportCardSource(source) },
+                    onSkip = { viewModel.skipMissingCards() },
+                    onDismiss = { viewModel.skipMissingCards() }
+                )
+            } else {
+                ImportResultDialog(
+                    result = importResult,
+                    onDismiss = {
+                        viewModel.clearImportResult()
+                        if (viewModel.selectedCardsIds.isNotEmpty()) {
+                            showSheet = true
+                        }
+                    }
+                )
+            }
         }
 
         if (showPremiumDeckDialog) {

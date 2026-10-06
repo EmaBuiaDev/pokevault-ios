@@ -100,6 +100,149 @@ fun DeckImportDialog(
 }
 
 /**
+ * Il riepilogo di un import, e basta.
+ *
+ * La domanda "che ne facciamo delle carte che non hai?" ha una sua schermata,
+ * [DeckCardSourceDialog], e arriva prima di questa: qui non si decide piu'
+ * niente, si legge com'e' andata.
+ */
+@Composable
+fun ImportResultDialog(
+    result: DeckLabViewModel.ImportResult,
+    onDismiss: () -> Unit
+) {
+    val hasMissingCards = result.missingMetaDeckCards.isNotEmpty()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = AppColors.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (result.matched > 0 && !hasMissingCards) Icons.Default.CheckCircle
+                    else if (hasMissingCards) Icons.Default.Warning
+                    else Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = if (result.matched > 0 && !hasMissingCards) AppColors.green else AppColors.yellow,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(AppLocale.importResultTitle, color = AppColors.textPrimary, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    text = "${result.matched} ${AppLocale.importCardsFound} ${result.totalRequested}",
+                    color = AppColors.textPrimary,
+                    fontSize = 14.sp
+                )
+
+                    if (result.setMismatchWarnings.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Carte abbinate con espansione diversa (${result.setMismatchWarnings.size}):",
+                            color = AppColors.orange,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        result.setMismatchWarnings.take(8).forEach { card ->
+                            Text(
+                                text = "• $card",
+                                color = AppColors.textMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                        if (result.setMismatchWarnings.size > 8) {
+                            Text(
+                                text = "... e altre ${result.setMismatchWarnings.size - 8}",
+                                color = AppColors.textMuted.copy(alpha = 0.6f),
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+
+                if (result.missingCards.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "${AppLocale.importMissingTitle} (${result.missing}):",
+                        color = AppColors.yellow,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    result.missingCards.take(10).forEach { card ->
+                        Text(
+                            text = "• $card",
+                            color = AppColors.textMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                    if (result.missingCards.size > 10) {
+                        Text(
+                            text = "... ${AppLocale.importAndMore} ${result.missingCards.size - 10}",
+                            color = AppColors.textMuted.copy(alpha = 0.6f),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                if (hasMissingCards) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        color = AppColors.orange.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = AppColors.orange,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = AppLocale.importLeftOutMessage,
+                                color = AppColors.textPrimary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                } else if (result.matched > 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = AppLocale.importMatchedMessage,
+                        color = AppColors.green.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = AppLocale.importNoMatchMessage,
+                        color = AppColors.red.copy(alpha = 0.8f),
+                        fontSize = 11.sp
+                    )
+                }
+
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text(AppLocale.ok)
+            }
+        }
+    )
+}
+
+/**
  * Dove finiscono le carte che l'utente non possiede.
  *
  * Una domanda sola per due momenti diversi: dopo un import, dove le carte

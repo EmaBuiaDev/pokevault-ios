@@ -1,0 +1,189 @@
+package com.emabuia.pokevault.data.remote
+
+import com.emabuia.pokevault.util.IllustratorNames
+
+object SetCodeMapper {
+
+    private val aliasToApiId: Map<String, String> = mapOf(
+        "SV01" to "sv1",
+        "SV02" to "sv2",
+        "SV03" to "sv3",
+        "SV04" to "sv4",
+        "SV05" to "sv5",
+        "SV06" to "sv6",
+        "SV07" to "sv7",
+        "SV08" to "sv8",
+        "SV09" to "sv9",
+        "SV10" to "sv10",
+        "SVI" to "sv1",
+        "PAL" to "sv2",
+        "OBF" to "sv3",
+        "MEW" to "sv3pt5",
+        "PAR" to "sv4",
+        "PAF" to "sv4pt5",
+        "TEF" to "sv5",
+        "TWM" to "sv6",
+        "SFA" to "sv6pt5",
+        "SCR" to "sv7",
+        "SSP" to "sv8",
+        "PRE" to "sv8pt5",
+        "JTG" to "sv9",
+        "DRI" to "sv10",
+        "ASC" to "asc",
+        "POR" to "me03",
+        "ME03" to "me03",
+        "ME04" to "dcr",
+        "CRI" to "dcr",
+        "ME01" to "MEG",
+        "ME02" to "PFL",
+        // MEP e' un'espansione a se' (le promo Mega Evolution), non un altro
+        // nome di MEG. Mandandoli tutti e due su "MEG" il catalogo non poteva
+        // piu' distinguerli, e una carta cercata per set+numero usciva da
+        // qualunque delle due venisse prima: "Kadabra MEG 55" tornava la 55 di
+        // MEP, che e' un altro Pokemon.
+        "MEP" to "mep",
+        "ME2PT5" to "asc",
+        // Le due uscite dopo Caos Nascente. Senza alias il codice delle
+        // decklist (PBL, 30C) non portava a nessuna espansione italiana, e
+        // ogni carta di questi set diventava un segnaposto senza immagine.
+        // Verificati sul catalogo per numero e nome: PBL 65 e' Mega
+        // Excadrill-ex di me05, 30C 66 e' Mew-ex di 30th.
+        "PBL" to "me05",
+        "ME05" to "me05",
+        "30C" to "30th",
+        // Black Bolt e White Flare sono due set diversi usciti insieme, e sono
+        // questi i loro id veri: "sv11" non esiste, e mandandoceli entrambi si
+        // rendevano indistinguibili esattamente come MEG e MEP.
+        //
+        // Quale e' quale lo dicono le carte, non i nomi: zsv10pt5 ha Zekrom-ex
+        // ed e' Black Bolt / "Luce Nera", rsv10pt5 ha Reshiram-ex (e le WHT di
+        // Limitless: Brave Bangle 80 = Braccialcoraggio) ed e' White Flare /
+        // "Fuoco Bianco". La lettera dell'id e' quella del leggendario.
+        //
+        // Fino alla 3.1.5 erano scambiati, e scambiati i due codici restano
+        // distinti -- un test di sole collisioni passa lo stesso. La ricerca
+        // per set accettava allora tutti e due i set, e un Allenatore BLK col
+        // nome tradotto usciva da Fuoco Bianco: "Air Balloon BLK 79" entrava
+        // come Vecchio Fossilpiuma (ImportDeckEmulatorTest lo prova).
+        "BLK" to "zsv10pt5",
+        "WHT" to "rsv10pt5",
+        "RCL" to "swsh2",
+        "DAA" to "swsh3",
+        "CPA" to "swsh35",
+        "VIV" to "swsh4",
+        "BST" to "swsh5",
+        "CRE" to "swsh6",
+        "EVS" to "swsh7",
+        "FST" to "swsh8",
+        "BRS" to "swsh9",
+        "ASR" to "swsh10",
+        "LOR" to "swsh11",
+        "SIT" to "swsh12",
+        "CRZ" to "swsh12pt5",
+        // Esplosione Plasma, formato Expanded. Mancava: "PLB 53" non trovava
+        // nessuna carta. L'ha trovato SigleDecklistTest, che prova ogni set
+        // con una sigla su D1.
+        "PLB" to "bw10"
+    )
+
+    private val apiIdRegex = Regex("^[a-z0-9]+$")
+
+    private val canonicalIds: Map<String, String> = aliasToApiId.values.associateBy { it.lowercase() }
+
+    private val setNameToApiId: Map<String, String> = mapOf(
+        "scarlet violet" to "sv1",
+        "paldea evolved" to "sv2",
+        "obsidian flames" to "sv3",
+        "pokemon 151" to "sv3pt5",
+        "paradox rift" to "sv4",
+        "paldean fates" to "sv4pt5",
+        "temporal forces" to "sv5",
+        "twilight masquerade" to "sv6",
+        "shrouded fable" to "sv6pt5",
+        "stellar crown" to "sv7",
+        "surging sparks" to "sv8",
+        "prismatic evolutions" to "sv8pt5",
+        "journey together" to "sv9",
+        "destined rivals" to "sv10",
+        "ascended heroes" to "asc",
+        "chaos rising" to "dcr",
+        // Stessi id degli alias BLK/WHT qui sopra: il percorso per nome e'
+        // l'altra meta' della stessa ricerca e deve dare lo stesso risultato.
+        "black bolt" to "zsv10pt5",
+        "white flare" to "rsv10pt5",
+        "rebel clash" to "swsh2",
+        "darkness ablaze" to "swsh3",
+        "champions path" to "swsh35",
+        "vivid voltage" to "swsh4",
+        "battle styles" to "swsh5",
+        "chilling reign" to "swsh6",
+        "evolving skies" to "swsh7",
+        "fusion strike" to "swsh8",
+        "brilliant stars" to "swsh9",
+        "astral radiance" to "swsh10",
+        "lost origin" to "swsh11",
+        "silver tempest" to "swsh12",
+        "crown zenith" to "swsh12pt5"
+    )
+
+    fun normalizeDecklistSetCode(raw: String?): String? {
+        val cleaned = raw?.trim()?.takeIf { it.isNotBlank() } ?: return null
+        val upper = cleaned.uppercase()
+        aliasToApiId[upper]?.let { return it }
+        // Un id gia' canonico resta com'e'. Senza, "dcr" (quello che CRI
+        // diventa) tornava "DCR" a una seconda normalizzazione: il parser
+        // normalizza, e chi riceve la carta normalizza di nuovo.
+        canonicalIds[cleaned.lowercase()]?.let { return it }
+
+        val normalizedName = normalizeSetName(cleaned)
+        setNameToApiId[normalizedName]?.let { return it }
+
+        val lower = cleaned.lowercase()
+        if (apiIdRegex.matches(lower) && lower.any { it.isDigit() }) {
+            return lower
+        }
+
+        return upper
+    }
+
+    fun matchesImportedSet(importedSet: String?, cardSetName: String?, cardApiSetId: String?, cardApiId: String?): Boolean {
+        val importedCanonical = normalizeDecklistSetCode(importedSet) ?: return true
+        val cardCanonical = linkedSetOf<String>()
+
+        normalizeDecklistSetCode(cardApiSetId)?.let { cardCanonical += it }
+        normalizeDecklistSetCode(cardApiId?.substringBefore("-"))?.let { cardCanonical += it }
+        normalizeDecklistSetCode(cardSetName)?.let { cardCanonical += it }
+
+        return importedCanonical in cardCanonical
+    }
+
+    fun searchTokensForSetQuery(raw: String?): List<String> {
+        val canonical = normalizeDecklistSetCode(raw) ?: return emptyList()
+        val tokens = linkedSetOf<String>()
+
+        aliasToApiId.entries
+            .filter { (_, apiId) -> apiId.equals(canonical, ignoreCase = true) }
+            .forEach { (alias, _) -> tokens += alias }
+
+        tokens += canonical.uppercase()
+
+        raw?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?.uppercase()
+            ?.let { tokens += it }
+
+        return tokens.toList()
+    }
+
+    private fun normalizeText(value: String?): String {
+        if (value.isNullOrBlank()) return ""
+        val normalized = IllustratorNames.stripDiacritics(value)
+            .lowercase()
+        return normalized
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
+    }
+
+    private fun normalizeSetName(value: String?): String = normalizeText(value)
+}

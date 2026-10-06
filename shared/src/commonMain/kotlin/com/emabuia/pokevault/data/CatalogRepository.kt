@@ -121,6 +121,19 @@ class CatalogRepository(
             .toMap()
     }
 
+    /**
+     * La carta che una riga di decklist indica (set, numero, nome): vedi
+     * [ItalianCardLookup]. Per l'import dei deck.
+     */
+    suspend fun findExactItalianCard(
+        setCode: String?,
+        number: String?,
+        expectedName: String? = null,
+        requireNameMatch: Boolean = false,
+    ): Card? = withContext(Dispatchers.Default) {
+        ItalianCardLookup.findExact(loadFullCatalog(), setCode, number, expectedName, requireNameMatch)
+    }
+
     private suspend fun loadFullCatalog(): List<Card> =
         fullCatalog ?: cachedOrFetch(KEY_CATALOG, CARDS, CATALOG_TTL_MS) { api.getFullCatalog() }
             .also { fullCatalog = it }

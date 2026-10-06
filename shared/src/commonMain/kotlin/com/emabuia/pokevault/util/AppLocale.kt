@@ -804,4 +804,7 @@ object AppLocale {
     val plus: String get() = "Piu"
     fun selectCover(cardName: String): String = "Seleziona copertina $cardName"
     val selectedCover: String get() = "Copertina selezionata"
+
+    // Deck Lab, import: gli stessi testi dell'app Android.
+    fun deckSourceQuestion(missing: Int): String = "$missing carte del deck non sono nella tua collezione."
 }

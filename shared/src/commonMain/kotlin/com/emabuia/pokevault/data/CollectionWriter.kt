@@ -52,8 +52,50 @@ class CollectionWriter(
      * stessa stampa sale di quantita' invece di duplicarsi). Vero: un documento
      * nuovo, a valore zero perche' non e' posseduto, che non tocca i totali.
      */
-    suspend fun addForDeck(card: Card, expansionName: String, price: PriceEntry?, quantity: Int, deckOnly: Boolean): String =
-        addPrint(card, expansionName, if (deckOnly) null else price, "Normal", quantity, "Near Mint", "Italiano", deckOnly)
+    suspend fun addForDeck(
+        card: Card,
+        expansionName: String,
+        price: PriceEntry?,
+        quantity: Int,
+        deckOnly: Boolean,
+        supertypeOverride: String? = null,
+    ): String =
+        addPrint(card, expansionName, if (deckOnly) null else price, "Normal", quantity, "Near Mint", "Italiano", deckOnly, supertypeOverride)
+
+    /**
+     * Una carta che il catalogo non conosce, coi soli dati della decklist: il
+     * ripiego di lookupAndCreateCard su Android. Senza apiCardId non si fonde
+     * con niente, come addCard li'.
+     */
+    suspend fun addPlaceholder(card: PokemonCard): String {
+        val (uid, token) = credentials()
+        val id = writes.createCard(uid, token, linkedMapOf(
+            "name" to card.name,
+            "imageUrl" to card.imageUrl,
+            "set" to card.set,
+            "rarity" to card.rarity,
+            "type" to card.type,
+            "hp" to card.hp,
+            "supertype" to card.supertype,
+            "subtypes" to card.subtypes,
+            "isGraded" to false,
+            "grade" to null,
+            "gradingCompany" to "",
+            "estimatedValue" to card.estimatedValue,
+            "quantity" to card.quantity,
+            "condition" to card.condition,
+            "notes" to "",
+            "apiCardId" to card.apiCardId,
+            "cardNumber" to card.cardNumber,
+            "variant" to card.variant,
+            "language" to canonicalDisplayLanguage(card.language),
+            "deckOnly" to card.deckOnly,
+            "addedAt" to ServerNow,
+        ))
+        if (!card.deckOnly) bestEffortTotals(uid, token, card.quantity.toLong(), card.estimatedValue * card.quantity)
+        collection.notifyChanged()
+        return id
+    }
 
     private suspend fun addPrint(
         card: Card,
@@ -64,11 +106,13 @@ class CollectionWriter(
         condition: String,
         language: String,
         deckOnly: Boolean = false,
+        supertypeOverride: String? = null,
     ): String {
         val (uid, token) = credentials()
         val apiCardId = card.italianId() ?: error("Carta senza id: ${card.cardId}")
         val canonicalLanguage = canonicalDisplayLanguage(language)
         val incoming = fieldsFor(card, expansionName, price, variant, quantity, condition, canonicalLanguage, apiCardId, deckOnly)
+            .let { if (supertypeOverride != null) it + ("supertype" to supertypeOverride) else it }
 
         if (deckOnly) {
             // Come addCard su Android: una carta solo-deck non si fonde mai con

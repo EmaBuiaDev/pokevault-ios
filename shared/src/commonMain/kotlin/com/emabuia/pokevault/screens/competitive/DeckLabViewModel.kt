@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.emabuia.pokevault.data.Card
 import com.emabuia.pokevault.data.CatalogRepository
 import com.emabuia.pokevault.data.CollectionRepository
 import com.emabuia.pokevault.data.CollectionWriter
@@ -13,7 +14,13 @@ import com.emabuia.pokevault.data.CompetitiveRepository
 import com.emabuia.pokevault.data.ExpansionsState
 import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.WORKER_BASE_URL
+import com.emabuia.pokevault.data.model.BasicEnergyResolver
 import com.emabuia.pokevault.data.model.CardClassifier
+import com.emabuia.pokevault.data.model.DeckImportParser
+import com.emabuia.pokevault.data.model.MetaDeck
+import com.emabuia.pokevault.data.model.MetaDeckCard
+import com.emabuia.pokevault.data.remote.SetCodeMapper
+import com.emabuia.pokevault.util.IllustratorNames
 import com.emabuia.pokevault.data.model.Deck
 import com.emabuia.pokevault.data.model.DeckAnalysis
 import com.emabuia.pokevault.data.model.PokemonCard
@@ -29,7 +36,7 @@ import kotlinx.coroutines.launch
  *
  * Ci sono l'elenco, il dettaglio, elimina, duplica, esporta e l'editor (crea
  * e modifica, con le carte della collezione e quelle cercate nel catalogo).
- * L'import da testo e dai meta deck arriva nel prossimo giro.
+ * C'e' anche l'import, da testo e dai meta deck.
  *
  * Su Android i dati arrivano da snapshot listener; qui si rileggono a ogni
  * scrittura (repository.changes), con lo stesso effetto.
@@ -83,7 +90,7 @@ class DeckLabViewModel(
     var validationError by mutableStateOf<String?>(null)
         private set
 
-    /** Il deck in modifica viene da un import: l'editor parte dai dettagli. Arriva col prossimo giro. */
+    /** Il deck in modifica viene da un import: l'editor parte dai dettagli e mostra solo le carte del deck. */
     var isImportReviewMode by mutableStateOf(false)
         private set
 
@@ -118,7 +125,7 @@ class DeckLabViewModel(
         selectedCardsIds.any { it in sessionDeckOnlyCardIds || allCardsById[it]?.deckOnly == true }
     }
 
-    /** Le carte importate senza immagine: si riempie con l'import, nel prossimo giro. */
+    /** Le carte importate senza immagine: l'editor le elenca, invece di lasciarle comparire in silenzio. */
     var importPlaceholderNames by mutableStateOf<List<String>>(emptyList())
         private set
 
@@ -436,6 +443,7 @@ class DeckLabViewModel(
         isImportReviewMode = false
         importPlaceholderNames = emptyList()
         deckCardSource = DeckCardSource.COLLECTION
+        isImportSourceChoicePending = false
         sessionDeckOnlyCardIds = emptySet()
         // Un annulla che risalisse a un deck precedente rimetterebbe dentro le sue carte.
         lastRemoval = null
@@ -559,6 +567,10 @@ class DeckLabViewModel(
         }
     }
 
+    private companion object {
+        val NON_ALNUM = Regex("[^a-z0-9]+")
+    }
+
     private fun expansionNames(): Map<String, String> =
         (catalog.expansions.value as? ExpansionsState.Ready)?.expansions
             ?.associate { it.id.lowercase() to it.name }
@@ -577,6 +589,376 @@ class DeckLabViewModel(
             source = this,
         )
     }
+
+    // ── Import ──────────────────────────────────────────────────────────────
+
+    data class ImportResult(
+        val matched: Int,
+        val missing: Int,
+        val missingCards: List<String>,
+        val setMismatchWarnings: List<String> = emptyList(),
+        val missingMetaDeckCards: List<MetaDeckCard> = emptyList(),
+        val totalRequested: Int
+    )
+
+    private data class OwnedMatch(
+        val cards: List<PokemonCard>,
+        val usedFallbackSet: Boolean
+    )
+
+    var importResult by mutableStateOf<ImportResult?>(null)
+        private set
+
+    /**
+     * L'import ha trovato delle carte mancanti e aspetta che l'utente dica
+     * cosa farne. Finche' e' true, al posto del risultato si mostra la scelta.
+     */
+    var isImportSourceChoicePending by mutableStateOf(false)
+        private set
+
+    var isAddingMissingCards by mutableStateOf(false)
+        private set
+
+    /** Importa da testo (formato PTCG standard): matcha le carte possedute e pre-popola il deck. */
+    fun importFromText(text: String): ImportResult {
+        resetNewDeckState()
+        isImportReviewMode = true
+
+        val parsed = DeckImportParser.parse(text)
+        if (parsed.deckName != null) {
+            newDeckName = parsed.deckName
+        }
+
+        return matchAndPopulate(parsed.cards.map { card ->
+            MetaDeckCard(
+                name = card.name,
+                set = card.set,
+                number = card.number,
+                qty = card.qty,
+                type = card.type
+            )
+        })
+    }
+
+    /** Importa da un MetaDeck (dalle schede Meta Deck e Win Tournament). */
+    fun importFromMetaDeck(metaDeck: MetaDeck): ImportResult {
+        resetNewDeckState()
+        isImportReviewMode = true
+        newDeckName = metaDeck.archetype ?: metaDeck.player ?: "Deck Importato"
+
+        return matchAndPopulate(metaDeck.cards)
+    }
+
+    /** Matcha una lista di carte con quelle possedute: nome + set + numero, poi ripieghi. */
+    private fun matchAndPopulate(cards: List<MetaDeckCard>): ImportResult {
+        val idsToAdd = mutableListOf<String>()
+        val missingCards = mutableListOf<String>()
+        val setMismatchWarnings = mutableListOf<String>()
+        val missingMetaDeckCards = mutableListOf<MetaDeckCard>()
+        var totalRequested = 0
+
+        for (card in cards) {
+            totalRequested += card.qty
+
+            val matched = findOwnedCards(card.name, card.set, card.number)
+
+            if (matched.cards.isEmpty()) {
+                missingCards.add("${card.qty}x ${card.name}")
+                missingMetaDeckCards.add(card)
+                continue
+            }
+
+            if (matched.usedFallbackSet && !card.set.isNullOrBlank()) {
+                val withNumber = if (card.number.isNullOrBlank()) card.name else "${card.name} ${card.number}"
+                setMismatchWarnings.add("${card.qty}x $withNumber (${card.set})")
+            }
+
+            var remaining = card.qty
+            for (ownedCard in matched.cards) {
+                if (remaining <= 0) break
+                val alreadyInDeck = idsToAdd.count { it == ownedCard.id }
+                val available = ownedCard.quantity - alreadyInDeck
+                val toAdd = minOf(remaining, available)
+                repeat(toAdd) { idsToAdd.add(ownedCard.id) }
+                remaining -= toAdd
+            }
+
+            if (remaining > 0) {
+                missingCards.add("${remaining}x ${card.name} (possiedi meno copie)")
+                missingMetaDeckCards.add(card.copy(qty = remaining))
+            }
+        }
+
+        selectedCardsIds = idsToAdd.take(60)
+        // Nessuna copertina d'ufficio: senza scelta decide headlineScore.
+        analyzeDeck()
+
+        val result = ImportResult(
+            matched = idsToAdd.size,
+            missing = missingCards.size,
+            missingCards = missingCards,
+            setMismatchWarnings = setMismatchWarnings.distinct(),
+            missingMetaDeckCards = missingMetaDeckCards,
+            totalRequested = totalRequested
+        )
+        importResult = result
+        // Se non manca niente, non c'e' niente da chiedere.
+        isImportSourceChoicePending = missingMetaDeckCards.isNotEmpty()
+        return result
+    }
+
+    /** Le carte possedute che corrispondono a nome, set e numero; poi ripiego sul nome. */
+    private fun findOwnedCards(name: String, set: String?, number: String?): OwnedMatch {
+        val nameLower = name.lowercase().trim()
+
+        // Le energie base si cercano per tipo, non per stampa.
+        if (BasicEnergyResolver.isBasicEnergy(name)) {
+            val ownedEnergies = ownedCards.filter { card ->
+                BasicEnergyResolver.isSameBasicEnergy(card.name, name)
+            }
+            if (ownedEnergies.isNotEmpty()) {
+                return OwnedMatch(
+                    // Prima quelle con un'immagine: non i segnaposto di import vecchi.
+                    cards = ownedEnergies.sortedByDescending { it.imageUrl.isNotBlank() },
+                    usedFallbackSet = false
+                )
+            }
+        }
+
+        // 1. Match esatto: nome + set + numero
+        if (set != null && number != null) {
+            val exact = ownedCards.filter { card ->
+                card.name.lowercase().trim() == nameLower &&
+                    SetCodeMapper.matchesImportedSet(
+                        importedSet = set,
+                        cardSetName = card.set,
+                        cardApiSetId = card.apiCardId.substringBefore("-"),
+                        cardApiId = card.apiCardId
+                    ) &&
+                    card.cardNumber == number
+            }
+            if (exact.isNotEmpty()) return OwnedMatch(exact, usedFallbackSet = false)
+        }
+
+        // 2. Nome + numero, con preferenza per il set quando c'e'
+        if (number != null) {
+            val byNameAndNumber = ownedCards
+                .filter { card ->
+                    card.name.lowercase().trim() == nameLower &&
+                        card.cardNumber == number
+                }
+                .sortedByDescending { card ->
+                    SetCodeMapper.matchesImportedSet(
+                        importedSet = set,
+                        cardSetName = card.set,
+                        cardApiSetId = card.apiCardId.substringBefore("-"),
+                        cardApiId = card.apiCardId
+                    )
+                }
+
+            if (byNameAndNumber.isNotEmpty()) {
+                val hasSetMatch = set.isNullOrBlank() || SetCodeMapper.matchesImportedSet(
+                    importedSet = set,
+                    cardSetName = byNameAndNumber.first().set,
+                    cardApiSetId = byNameAndNumber.first().apiCardId.substringBefore("-"),
+                    cardApiId = byNameAndNumber.first().apiCardId
+                )
+                return OwnedMatch(byNameAndNumber, usedFallbackSet = !hasSetMatch)
+            }
+        }
+
+        // 3. Nome esatto
+        val byName = ownedCards.filter { card ->
+            card.name.lowercase().trim() == nameLower
+        }
+        if (byName.isNotEmpty()) return OwnedMatch(byName, usedFallbackSet = !set.isNullOrBlank())
+
+        // 4. Nome parziale
+        val byPartial = ownedCards.filter { card ->
+            card.name.lowercase().contains(nameLower) ||
+                nameLower.contains(card.name.lowercase())
+        }
+        return OwnedMatch(byPartial, usedFallbackSet = byPartial.isNotEmpty() && !set.isNullOrBlank())
+    }
+
+    fun clearImportResult() {
+        importResult = null
+    }
+
+    /**
+     * L'utente ha scelto cosa fare delle carte mancanti: in collezione o solo
+     * nel deck. In entrambi i casi il deck esce completo.
+     */
+    fun applyImportCardSource(source: DeckCardSource) {
+        deckCardSource = source
+
+        val missing = importResult?.missingMetaDeckCards.orEmpty()
+        if (missing.isEmpty()) {
+            isImportSourceChoicePending = false
+            return
+        }
+
+        // La scelta resta a schermo finche' il lavoro non e' finito: e' li' che
+        // vive l'indicatore di avanzamento.
+        addMissingCardsToCollection(missing) {
+            isImportSourceChoicePending = false
+        }
+    }
+
+    /** "Continua senza": il deck resta con le sole carte gia' possedute. */
+    fun skipMissingCards() {
+        isImportSourceChoicePending = false
+    }
+
+    /**
+     * Crea le carte mancanti e le aggiunge al deck. Ognuna si cerca nel
+     * catalogo italiano; se non c'e', entra coi soli dati della decklist.
+     * Finiscono in collezione o restano solo-deck secondo [deckCardSource].
+     */
+    fun addMissingCardsToCollection(missingCards: List<MetaDeckCard>, onComplete: () -> Unit = {}) {
+        if (missingCards.isEmpty()) return
+        isAddingMissingCards = true
+        val deckOnly = deckCardSource == DeckCardSource.DECK_ONLY
+
+        viewModelScope.launch {
+            catalog.ensureExpansions()
+            val names = expansionNames()
+            // In sequenza: il catalogo e' gia' sul telefono, e cosi' l'ordine
+            // delle carte nel deck resta quello della decklist.
+            val newIds = mutableListOf<String>()
+            val placeholders = mutableListOf<String>()
+            for (card in missingCards) {
+                val created = load { lookupAndCreateCard(card, deckOnly, names) } ?: continue
+                val (docId, isPlaceholder) = created
+                if (isPlaceholder) placeholders += card.name
+                repeat(card.qty) { newIds.add(docId) }
+                if (deckOnly) sessionDeckOnlyCardIds = sessionDeckOnlyCardIds + docId
+            }
+            importPlaceholderNames = placeholders.distinct()
+
+            if (newIds.isNotEmpty()) {
+                selectedCardsIds = (selectedCardsIds + newIds).take(60)
+                analyzeDeck()
+            }
+
+            isAddingMissingCards = false
+            // Il risultato resta a schermo, ma senza piu' mancanti.
+            importResult = importResult?.copy(
+                matched = selectedCardsIds.size,
+                missing = 0,
+                missingCards = emptyList(),
+                missingMetaDeckCards = emptyList()
+            )
+            onComplete()
+        }
+    }
+
+    /**
+     * Crea il documento di una carta mancante e ne restituisce l'id, piu' se
+     * e' un segnaposto senza immagine. Il prezzo solo per le carte possedute:
+     * una solo-deck non vale niente.
+     */
+    private suspend fun lookupAndCreateCard(
+        card: MetaDeckCard,
+        deckOnly: Boolean,
+        names: Map<String, String>,
+    ): Pair<String, Boolean> {
+        val found = resolveCatalogCard(card)
+        if (found != null) {
+            val expansionId = found.espansioneId.trim().lowercase()
+            val price = if (deckOnly) null else load { catalog.expansionCards(found.espansioneId).priceOf(found) }
+            // Senza PS e tipo il catalogo tira a indovinare la sezione: li'
+            // decide la decklist, che la sezione la dice (vedi Android).
+            val override = card.supertypeLabel()?.takeIf { found.ps.isNullOrBlank() && found.tipo.isNullOrBlank() }
+            val id = writer.addForDeck(
+                card = found,
+                expansionName = names[expansionId] ?: expansionId.uppercase(),
+                price = price,
+                quantity = card.qty,
+                deckOnly = deckOnly,
+                supertypeOverride = override,
+            )
+            return id to false
+        }
+
+        // Ripiego: dati minimi dalla decklist.
+        val supertype = card.supertypeLabel() ?: "Pokémon"
+        val id = writer.addPlaceholder(
+            PokemonCard(
+                name = card.name,
+                set = card.set ?: "",
+                cardNumber = card.number ?: "",
+                quantity = card.qty,
+                estimatedValue = 0.0,
+                supertype = supertype,
+                hp = if (supertype == "Pokémon") 100 else 0,
+                condition = "Near Mint",
+                variant = "Normal",
+                deckOnly = deckOnly
+            )
+        )
+        return id to true
+    }
+
+    private fun MetaDeckCard.supertypeLabel(): String? = when (type.lowercase()) {
+        "pokemon" -> "Pokémon"
+        "trainer" -> "Trainer"
+        "energy" -> "Energy"
+        else -> null
+    }
+
+    /**
+     * Tre tentativi prima di arrendersi a una carta senza immagine: set e
+     * numero (col nome come conferma), l'energia base del tipo giusto, il
+     * solo nome. Come resolveCatalogCard su Android.
+     */
+    private suspend fun resolveCatalogCard(card: MetaDeckCard): Card? {
+        val isPokemon = card.type.equals("pokemon", ignoreCase = true)
+        return catalog.findExactItalianCard(
+            setCode = card.set,
+            number = card.number,
+            expectedName = card.name,
+            requireNameMatch = isPokemon
+        )
+            ?: resolveBasicEnergyCard(card)
+            ?: resolveByNameOnly(card)
+    }
+
+    /** Il set delle energie di PTCGL (SVE) in italiano non c'e': un'energia base del tipo giusto. */
+    private suspend fun resolveBasicEnergyCard(card: MetaDeckCard): Card? {
+        val energyName = BasicEnergyResolver.italianEnergyName(card.name) ?: return null
+        return catalog.search(energyName).take(40).firstOrNull { candidate ->
+            BasicEnergyResolver.isSameBasicEnergy(candidate.nome, energyName)
+        }
+    }
+
+    /**
+     * La carta cercata per nome, ignorando il set: il nome deve coincidere,
+     * non somigliare ("Toucannon" non e' "Toucannon ex"). A parita' di nome
+     * si preferisce lo stesso numero.
+     */
+    private suspend fun resolveByNameOnly(card: MetaDeckCard): Card? {
+        val name = card.name.trim().takeIf { it.isNotBlank() } ?: return null
+        val wantedName = normalizeCardNameForMatch(name)
+
+        val candidates = catalog.search(name).take(40)
+            .filter { candidate -> normalizeCardNameForMatch(candidate.nome) == wantedName }
+            .takeIf { it.isNotEmpty() }
+            ?: return null
+
+        val wantedNumber = card.number?.trim()?.substringBefore('/')?.trimStart('0')
+
+        return candidates.firstOrNull { candidate ->
+            wantedNumber != null &&
+                candidate.number.orEmpty().trim().trimStart('0').equals(wantedNumber, ignoreCase = true)
+        } ?: candidates.first()
+    }
+
+    /** Minuscole, senza accenti e senza punteggiatura: per confrontare due nomi. */
+    private fun normalizeCardNameForMatch(raw: String): String =
+        IllustratorNames.stripDiacritics(raw.trim().lowercase())
+            .replace(NON_ALNUM, " ")
+            .trim()
 
     // ── Esporta ─────────────────────────────────────────────────────────────
 
