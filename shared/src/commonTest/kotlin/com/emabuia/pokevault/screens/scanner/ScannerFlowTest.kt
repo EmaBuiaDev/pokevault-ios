@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.screens.scanner
 
+import androidx.lifecycle.ViewModelStore
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.Card
 import com.emabuia.pokevault.data.CatalogApi
@@ -56,15 +57,21 @@ class ScannerFlowTest {
     private val json = headersOf(HttpHeaders.ContentType, "application/json")
     private val commits = mutableListOf<JsonObject>()
 
+    // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
+    // schermata: senza, il suo lavoro in corso finisce dopo resetMain e fa
+    // cadere un test di un'altra classe (UncaughtExceptionsBeforeTest).
+    private val stores = mutableListOf<ViewModelStore>()
+
     @BeforeTest
     fun main() = Dispatchers.setMain(Dispatchers.Unconfined)
 
     @AfterTest
     fun cleanUp() {
+        stores.forEach { it.clear() }
         Dispatchers.resetMain()
         if (!SystemFileSystem.exists(Path(dir))) return
-        SystemFileSystem.list(Path(dir)).forEach { SystemFileSystem.delete(it) }
-        SystemFileSystem.delete(Path(dir))
+        SystemFileSystem.list(Path(dir)).forEach { SystemFileSystem.delete(it, mustExist = false) }
+        SystemFileSystem.delete(Path(dir), mustExist = false)
     }
 
     private fun bodyText(request: HttpRequestData): String = when (val body = request.body) {
@@ -117,6 +124,7 @@ class ScannerFlowTest {
         commits.clear()
         val collection = CollectionRepository(FirestoreApi(client, "p"), auth, store)
         return ScannerViewModel(CatalogRepository(catalogApi), CollectionWriter(FirestoreWrites(client, "p"), auth, collection))
+            .also { vm -> stores += ViewModelStore().apply { put("scanner-${stores.size}", vm) } }
     }
 
     /** Un fotogramma di Pikachu 067/087, come lo restituisce l'OCR. */

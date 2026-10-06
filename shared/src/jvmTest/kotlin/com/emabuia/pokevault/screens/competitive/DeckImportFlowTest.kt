@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.screens.competitive
 
+import androidx.lifecycle.ViewModelStore
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.Card
 import com.emabuia.pokevault.data.CatalogApi
@@ -50,11 +51,19 @@ class DeckImportFlowTest {
     private val json = headersOf(HttpHeaders.ContentType, "application/json")
     private val created = CopyOnWriteArrayList<JsonObject>()
 
+    // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
+    // schermata: senza, il suo lavoro in corso finisce dopo resetMain e fa
+    // cadere un test di un'altra classe (UncaughtExceptionsBeforeTest).
+    private val stores = mutableListOf<ViewModelStore>()
+
     @BeforeTest
     fun mainDispatcher() = Dispatchers.setMain(Dispatchers.Unconfined)
 
     @AfterTest
-    fun reset() = Dispatchers.resetMain()
+    fun reset() {
+        stores.forEach { it.clear() }
+        Dispatchers.resetMain()
+    }
 
     private fun bodyText(request: HttpRequestData): String = when (val body = request.body) {
         is TextContent -> body.text
@@ -117,6 +126,7 @@ class DeckImportFlowTest {
             CatalogRepository(catalogApi),
             CollectionWriter(FirestoreWrites(client, "p"), auth, collection),
         )
+        stores += ViewModelStore().apply { put("deck-${stores.size}", vm) }
         repeat(200) { if (vm.allCards.isEmpty()) Thread.sleep(10) }
         created.clear()
         return vm
