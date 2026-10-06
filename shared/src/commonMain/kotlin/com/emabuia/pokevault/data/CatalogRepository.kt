@@ -134,6 +134,18 @@ class CatalogRepository(
         ItalianCardLookup.findExact(loadFullCatalog(), setCode, number, expectedName, requireNameMatch)
     }
 
+    /** Le carte che lo Scanner propone per una lettura: vedi [ScannerCatalogSearch]. */
+    suspend fun scannerCandidates(
+        name: String?,
+        number: String?,
+        setTotal: String?,
+        targetSetId: String?,
+        expansions: List<Expansion>,
+        limit: Int,
+    ): List<ScannerCatalogSearch.Hit> = withContext(Dispatchers.Default) {
+        ScannerCatalogSearch.search(loadFullCatalog(), expansions, name, number, setTotal, targetSetId, limit)
+    }
+
     private suspend fun loadFullCatalog(): List<Card> =
         fullCatalog ?: cachedOrFetch(KEY_CATALOG, CARDS, CATALOG_TTL_MS) { api.getFullCatalog() }
             .also { fullCatalog = it }
