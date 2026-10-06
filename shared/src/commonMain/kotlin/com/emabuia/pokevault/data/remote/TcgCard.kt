@@ -26,4 +26,4 @@ data class TcgCard(
 data class TcgImages(val small: String)
 
 /** [printedTotal]: il numero dopo la barra ("066/217"), 0 se non si sa. */
-data class TcgSet(val id: String, val name: String, val printedTotal: Int = 0)
+data class TcgSet(val id: String, val name: String, val printedTotal: Int = 0, val series: String = "")

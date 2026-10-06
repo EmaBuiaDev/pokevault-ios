@@ -61,6 +61,11 @@ import org.koin.compose.koinInject
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import kotlinx.serialization.Serializable
+import com.emabuia.pokevault.screens.scanner.ScannerScreen
+import com.emabuia.pokevault.ui.navigation.ScannerFab
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 
 @Serializable
 object HomeDestination
@@ -132,6 +137,9 @@ object HandSimulatorDestination
 
 @Serializable
 object DeckLabDestination
+
+@Serializable
+object ScannerDestination
 
 /** [tournamentId] null: torneo nuovo. */
 @Serializable
@@ -396,6 +404,15 @@ fun App() {
                                 editMatchId = destination.matchId,
                             )
                         }
+                        composable<ScannerDestination> {
+                            // Le carte scansionate vanno in collezione: serve l'accesso.
+                            RequireLogin { _, _ ->
+                                ScannerScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onManualSearch = { navController.selectTab(BottomTab.POKEDEX) },
+                                )
+                            }
+                        }
                         composable<ComingSoonDestination> { entry ->
                             ComingSoonScreen(
                                 title = entry.toRoute<ComingSoonDestination>().title,
@@ -403,6 +420,13 @@ fun App() {
                                 onBack = { navController.popBackStack() },
                             )
                         }
+                    }
+                    // Lo Scanner sopra la barra, sulle quattro sezioni: come su Android.
+                    if (selectedTab != null && WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
+                        ScannerFab(
+                            onClick = { navController.navigate(ScannerDestination) },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 16.dp),
+                        )
                     }
                 }
                 // Con la tastiera aperta la barra si toglie, come su Android: sotto la

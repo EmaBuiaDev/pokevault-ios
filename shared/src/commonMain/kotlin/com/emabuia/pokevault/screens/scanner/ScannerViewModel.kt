@@ -508,6 +508,7 @@ class ScannerViewModel(
         catalog.ensureExpansions()
         val expansions = (catalog.expansions.value as? ExpansionsState.Ready)?.expansions.orEmpty()
         val names = expansions.associate { it.id.lowercase() to it.name }
+        val series = expansions.associate { it.id.lowercase() to it.series.orEmpty() }
         return catalog.scannerCandidates(name, number, setTotal, targetSetId, expansions, CANDIDATE_POOL_SIZE)
             .mapNotNull { hit ->
                 val card = hit.card
@@ -518,7 +519,7 @@ class ScannerViewModel(
                     name = card.nome,
                     number = card.number.orEmpty(),
                     images = TcgImages(card.imageUrl(WORKER_BASE_URL + "/", size = "low")?.let { "$it&itv=r2v3" }.orEmpty()),
-                    set = TcgSet(id = "ita:$expansionId", name = names[expansionId] ?: expansionId.uppercase(), printedTotal = hit.printedTotal ?: 0),
+                    set = TcgSet(id = "ita:$expansionId", name = names[expansionId] ?: expansionId.uppercase(), printedTotal = hit.printedTotal ?: 0, series = series[expansionId].orEmpty()),
                     rarity = card.rarity,
                     source = card,
                     supertype = supertypeOf(card),

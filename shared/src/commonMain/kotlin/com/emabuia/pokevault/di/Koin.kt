@@ -17,6 +17,7 @@ import com.emabuia.pokevault.screens.competitive.CompetitiveLogViewModel
 import com.emabuia.pokevault.screens.competitive.HandSimulatorViewModel
 import com.emabuia.pokevault.screens.competitive.DeckLabViewModel
 import com.emabuia.pokevault.screens.competitive.MetaDeckViewModel
+import com.emabuia.pokevault.screens.scanner.ScannerViewModel
 import com.emabuia.pokevault.data.remote.LimitlessTcgRepository
 import com.emabuia.pokevault.data.simulator.HandSimulatorLocalStore
 import com.emabuia.pokevault.screens.album.AlbumViewModel
@@ -104,6 +105,7 @@ val viewModelModule = module {
     factoryOf(::CompetitiveLogViewModel)
     factoryOf(::HandSimulatorViewModel)
     factoryOf(::DeckLabViewModel)
+    factoryOf(::ScannerViewModel)
     factory { MetaDeckViewModel(get(), get(), get(named(DATA))) }
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->

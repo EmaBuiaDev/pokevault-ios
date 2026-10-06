@@ -81,7 +81,8 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Premium con StoreKit 2 (o RevenueCat) + endpoint di verifica Apple nel Worker
       (l'unica modifica nel repo `pokevault`, da fare a parte e solo quando serve)
 - [ ] Notifiche: chiave APNs caricata su Firebase
-- [ ] Scanner: fotocamera + Apple Vision
+- [x] Scanner: fotocamera (AVFoundation) + Apple Vision, stessa logica di Android (consenso fra fotogrammi, carta da confermare o rosa di candidati, modalita' continua, annulla)
+- [ ] Provare lo Scanner su un iPhone vero (su Appetize la fotocamera non c'e')
 - [ ] TradeRadar, per ultimo: la moderazione e l'età (18+) vanno spiegate bene alla revisione
 
 ### Fase 6: revisione Apple

@@ -885,4 +885,7 @@ object AppLocale {
     fun scannerUndoFailed(message: String): String = "Non riesco ad annullare: $message"
     val scannerUnknownExpansion: String get() = "Espansione sconosciuta"
     val scannerWhichOne: String get() = "Quale di queste?"
+
+    // Scanner, bottone: gli stessi testi dell'app Android.
+    val scanCard: String get() = "Scansiona carta"
 }
