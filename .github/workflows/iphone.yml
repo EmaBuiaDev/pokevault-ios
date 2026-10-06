@@ -1,0 +1,57 @@
+name: iPhone (ipa da firmare)
+
+# L'app per un iPhone vero, senza App Store: un .ipa NON firmato, da firmare e
+# installare dal PC con Sideloadly (o AltStore) e un Apple ID anche gratuito.
+# Con l'account gratuito l'app dura 7 giorni, poi si reinstalla.
+#
+# Parte solo a mano (Actions -> iPhone -> Run workflow): la build Release per
+# iosArm64 e' lenta, e non serve a ogni push.
+on:
+  workflow_dispatch:
+
+jobs:
+  ipa:
+    name: ipa per iPhone (senza firma)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml') }}
+      # Senza il segreto l'app si installa lo stesso, ma col login spento.
+      - name: Configurazione Firebase dal segreto
+        env:
+          FIREBASE_IOS_PLIST: ${{ secrets.FIREBASE_IOS_PLIST }}
+        run: |
+          if [ -n "$FIREBASE_IOS_PLIST" ]; then
+            echo "$FIREBASE_IOS_PLIST" | base64 --decode > "$RUNNER_TEMP/GoogleService-Info.plist"
+            echo "FIREBASE_IOS_PLIST_PATH=$RUNNER_TEMP/GoogleService-Info.plist" >> "$GITHUB_ENV"
+          fi
+      - name: Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      # Release: su un telefono vero Compose in Debug e' visibilmente piu' lento.
+      - name: Build per iPhone (arm64, senza firma)
+        run: |
+          cd iosApp
+          xcodebuild -scheme iosApp -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED='NO' CODE_SIGNING_REQUIRED='NO' CODE_SIGN_IDENTITY=''
+      # Un .ipa e' uno zip con l'app dentro la cartella Payload.
+      - name: Impacchetta PokeVault.ipa
+        run: |
+          mkdir -p "$RUNNER_TEMP/ipa/Payload"
+          cp -R iosApp/build/dd/Build/Products/Release-iphoneos/PokeVault.app "$RUNNER_TEMP/ipa/Payload/"
+          cd "$RUNNER_TEMP/ipa"
+          zip -qry "$GITHUB_WORKSPACE/PokeVault.ipa" Payload
+          ls -lh "$GITHUB_WORKSPACE/PokeVault.ipa"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokeVault-iphone
+          path: PokeVault.ipa
+          retention-days: 14
