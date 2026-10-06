@@ -41,10 +41,42 @@ class CollectionWriter(
         condition: String,
         language: String,
     ) {
+        addPrint(card, expansionName, price, variant, quantity, condition, language)
+    }
+
+    /**
+     * Una carta del catalogo dentro a un deck: addTcgCardToDeck su Android.
+     * Restituisce l'id del documento, che e' quello che il deck contiene.
+     *
+     * [deckOnly] falso: e' una carta in collezione, con le regole di sempre (la
+     * stessa stampa sale di quantita' invece di duplicarsi). Vero: un documento
+     * nuovo, a valore zero perche' non e' posseduto, che non tocca i totali.
+     */
+    suspend fun addForDeck(card: Card, expansionName: String, price: PriceEntry?, quantity: Int, deckOnly: Boolean): String =
+        addPrint(card, expansionName, if (deckOnly) null else price, "Normal", quantity, "Near Mint", "Italiano", deckOnly)
+
+    private suspend fun addPrint(
+        card: Card,
+        expansionName: String,
+        price: PriceEntry?,
+        variant: String,
+        quantity: Int,
+        condition: String,
+        language: String,
+        deckOnly: Boolean = false,
+    ): String {
         val (uid, token) = credentials()
         val apiCardId = card.italianId() ?: error("Carta senza id: ${card.cardId}")
         val canonicalLanguage = canonicalDisplayLanguage(language)
-        val incoming = fieldsFor(card, expansionName, price, variant, quantity, condition, canonicalLanguage, apiCardId)
+        val incoming = fieldsFor(card, expansionName, price, variant, quantity, condition, canonicalLanguage, apiCardId, deckOnly)
+
+        if (deckOnly) {
+            // Come addCard su Android: una carta solo-deck non si fonde mai con
+            // un'altra, e non entra nei totali dell'utente.
+            val id = writes.createCard(uid, token, incoming)
+            collection.notifyChanged()
+            return id
+        }
 
         val existing = writes.findPrints(uid, token, apiCardId, variant).firstOrNull { (_, fields) ->
             normalizeLanguageKey(fields.string("language")) == normalizeLanguageKey(canonicalLanguage) &&
@@ -52,7 +84,7 @@ class CollectionWriter(
         }
 
         var effectiveValue = incoming["estimatedValue"] as Double
-        if (existing != null) {
+        val documentId = if (existing != null) {
             val (cardId, current) = existing
             val currentQty = current.int("quantity") ?: 1
             if (effectiveValue <= 0.0) effectiveValue = current.double("estimatedValue") ?: 0.0
@@ -78,12 +110,14 @@ class CollectionWriter(
             ) updates["type"] = incomingType
             if ((current.int("hp") ?: 0) <= 0 && (incoming["hp"] as Int) > 0) updates["hp"] = incoming["hp"]
             writes.updateCard(uid, token, cardId, updates)
+            cardId
         } else {
             writes.createCard(uid, token, incoming)
         }
 
         bestEffortTotals(uid, token, quantity.toLong(), effectiveValue * quantity)
         collection.notifyChanged()
+        return documentId
     }
 
     /**
@@ -179,6 +213,7 @@ class CollectionWriter(
             condition: String,
             canonicalLanguage: String,
             apiCardId: String,
+            deckOnly: Boolean = false,
         ): Map<String, Any?> = linkedMapOf(
             "name" to card.nome,
             // Come images.small su Android: l'immagine bassa del Worker col cache-buster.
@@ -202,7 +237,7 @@ class CollectionWriter(
             "cardNumber" to card.number.orEmpty(),
             "variant" to variant,
             "language" to canonicalLanguage,
-            "deckOnly" to false,
+            "deckOnly" to deckOnly,
             "addedAt" to ServerNow,
         )
 

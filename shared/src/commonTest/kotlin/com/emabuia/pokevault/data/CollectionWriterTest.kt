@@ -127,6 +127,34 @@ class CollectionWriterTest {
     }
 
     @Test
+    fun aCardForATestDeckIsAlwaysANewDocumentWorthNothingAndOutOfTheTotals() = runTest {
+        // Anche se la stessa stampa e' gia' posseduta: una carta solo-deck non si fonde.
+        existingPrints = """[{"document":{"name":"x/cards/doc-holo","fields":{"quantity":{"integerValue":"3"},"language":{"stringValue":"Italiano"}}}}]"""
+        val id = writer().addForDeck(lurantis, "Buio Pesto", PriceEntry(low = 2.5), quantity = 2, deckOnly = true)
+
+        val create = commits.single()
+        assertEquals(id, create["update"]!!.jsonObject["name"]!!.jsonPrimitive.content.substringAfterLast('/'))
+        assertEquals("true", create.field("deckOnly")["booleanValue"]!!.jsonPrimitive.content)
+        assertEquals("0.0", create.field("estimatedValue")["doubleValue"]!!.jsonPrimitive.content)
+        assertEquals("2", create.field("quantity")["integerValue"]!!.jsonPrimitive.content)
+        assertEquals("Normal", create.str("variant"))
+        assertTrue(queries.isEmpty())
+    }
+
+    @Test
+    fun aCardForACollectionDeckGrowsTheSamePrintAndReturnsItsDocument() = runTest {
+        existingPrints = """[{"document":{"name":"x/cards/doc-normal","fields":{"quantity":{"integerValue":"1"},"language":{"stringValue":"🇮🇹 Italiano"},
+            "supertype":{"stringValue":"Pokémon"},"type":{"stringValue":"Erba"},"hp":{"integerValue":"260"},
+            "subtypes":{"arrayValue":{"values":[{"stringValue":"Stage1"}]}}}}}]"""
+        val id = writer().addForDeck(lurantis, "Buio Pesto", PriceEntry(low = 2.5), quantity = 2, deckOnly = false)
+
+        assertEquals("doc-normal", id)
+        assertEquals("3", commits[0].field("quantity")["integerValue"]!!.jsonPrimitive.content)
+        // Le carte possedute muovono i totali, come su Android.
+        assertTrue("transform" in commits[1])
+    }
+
+    @Test
     fun theSamePrintInTheSameLanguageGrowsInsteadOfDuplicating() = runTest {
         existingPrints = """[{"document":{"name":"x/cards/doc-holo","fields":{
             "quantity":{"integerValue":"3"},"estimatedValue":{"doubleValue":2.0},"language":{"stringValue":"Italiano"},

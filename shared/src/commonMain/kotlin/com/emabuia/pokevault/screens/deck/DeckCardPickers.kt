@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.emabuia.pokevault.data.model.PokemonCard
+import com.emabuia.pokevault.data.remote.TcgCard
 import com.emabuia.pokevault.ui.theme.*
 import com.emabuia.pokevault.util.AppLocale
 import com.emabuia.pokevault.util.ImageUrlUtils
@@ -218,6 +219,56 @@ fun CardSelectionItem(
                         modifier = Modifier.size(14.dp)
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun TcgCardSearchItem(
+    card: TcgCard,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(0.71f)
+            .clip(RoundedCornerShape(8.dp))
+            .border(BorderStroke(1.dp, AppColors.purple.copy(alpha = 0.5f)), RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = ImageUrlUtils.safeImageUrl(card.images.small),
+            contentDescription = card.name,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize()
+        )
+        card.set?.name?.let { setName ->
+            Surface(
+                color = Color.Black.copy(alpha = 0.65f),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = setName,
+                    color = AppColors.textPrimary,
+                    fontSize = 8.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+        }
+        Surface(
+            color = AppColors.purple,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(20.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Add, contentDescription = AppLocale.add, tint = AppColors.textPrimary, modifier = Modifier.size(12.dp))
             }
         }
     }

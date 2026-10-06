@@ -24,7 +24,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Science
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -59,10 +67,10 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * Il Deck Lab: ui/deck/DeckLabScreen.kt di Android, la scheda "I Miei Deck".
  *
- * Su iOS per ora: elenco con i filtri, dettaglio, elimina, duplica ed
- * esporta. Mancano ancora l'editor (crea e modifica), l'import da testo e le
+ * Su iOS per ora: elenco con i filtri, dettaglio, elimina, duplica,
+ * esporta, e l'editor per creare e modificare. Mancano l'import da testo e le
  * schede Meta Deck e Win Tournament: le parti qui sotto sono quelle di
- * Android, il resto si aggiunge nei prossimi giri.
+ * Android, il resto si aggiunge nel prossimo giro.
  *
  * [onCardClick] riceve l'id del catalogo ("ita:..."), non quello del
  * documento: su iOS il dettaglio di una carta si apre da li'.
@@ -78,7 +86,35 @@ fun DeckLabScreen(
     // Saveable: tornando dal dettaglio di una carta il filtro resta quello scelto.
     var deckListFilter by rememberSaveable { mutableStateOf(DeckListFilter.ALL) }
     var showDeleteDeckDialog by remember { mutableStateOf(false) }
-    var showEditorComingSoon by remember { mutableStateOf(false) }
+    var showSheet by remember { mutableStateOf(false) }
+    var showDiscardDeckDialog by remember { mutableStateOf(false) }
+    var showNewDeckSourceDialog by remember { mutableStateOf(false) }
+    val deckScope = rememberCoroutineScope()
+
+    /** C'e' del lavoro che uno swipe distruggerebbe. */
+    fun hasDeckWork(): Boolean =
+        viewModel.selectedCardsIds.isNotEmpty() || viewModel.newDeckName.isNotBlank()
+
+    // Uno swipe verso il basso non butta via un deck in costruzione: il gesto
+    // viene rifiutato, il pannello torna su e si chiede se chiudere davvero
+    // (vedi il commento lungo su Android, rimesso su richiesta il 28/09/2026).
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { target ->
+            if (target == SheetValue.Hidden && hasDeckWork()) {
+                showDiscardDeckDialog = true
+                false
+            } else {
+                true
+            }
+        }
+    )
+
+    fun closeDeckSheet() {
+        showDiscardDeckDialog = false
+        showSheet = false
+        viewModel.discardEditingDeck()
+    }
     var showPremiumDeckDialog by remember { mutableStateOf(false) }
     var showPremiumDeckExportDialog by remember { mutableStateOf(false) }
     var showDeckExportDialog by remember { mutableStateOf(false) }
@@ -126,6 +162,27 @@ fun DeckLabScreen(
                     }
                 }
             }
+        },
+        floatingActionButton = {
+            if (selectedDeck == null) {
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        if (viewModel.canCreateDeck()) {
+                            viewModel.resetNewDeckState()
+                            // La domanda si fa qui, una volta, invece di tenere
+                            // un selettore acceso in cima all'editor.
+                            showNewDeckSourceDialog = true
+                        } else {
+                            showPremiumDeckDialog = true
+                        }
+                    },
+                    containerColor = AppColors.blue,
+                    contentColor = AppColors.textPrimary,
+                    shape = RoundedCornerShape(16.dp),
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(AppLocale.createNewDeck) }
+                )
+            }
         }
     ) { padding ->
         Box(modifier = Modifier.padding(if (selectedDeck == null) padding else PaddingValues(0.dp))) {
@@ -139,8 +196,10 @@ fun DeckLabScreen(
                         allOwnedCards = viewModel.allCards,
                         onBack = { selectedDeckId = null },
                         onCardClick = { id -> viewModel.apiCardIdOf(id)?.let(onCardClick) },
-                        // L'editor arriva nel prossimo giro: per ora la matita lo dice.
-                        onEdit = { showEditorComingSoon = true },
+                        onEdit = {
+                            viewModel.prepareEdit(selectedDeck)
+                            showSheet = true
+                        },
                         // Il cestino non esegue da solo: cancellare un deck non
                         // si annulla, e da un deck di prova si porta via anche
                         // le sue carte.
@@ -225,6 +284,34 @@ fun DeckLabScreen(
             }
         }
 
+        if (showSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    if (hasDeckWork()) showDiscardDeckDialog = true else closeDeckSheet()
+                },
+                sheetState = sheetState,
+                containerColor = AppColors.surface,
+                // Solo il margine in basso: con quello in alto il pannello
+                // oscillava dopo uno swipe veloce (Material3 1.4, vedi Android).
+                contentWindowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom) },
+                dragHandle = { BottomSheetDefaults.DragHandle(color = AppColors.textMuted) }
+            ) {
+                NewDeckBottomSheetContent(
+                    viewModel = viewModel,
+                    isEditing = viewModel.editingDeckId != null,
+                    onRequestClose = {
+                        if (hasDeckWork()) showDiscardDeckDialog = true else closeDeckSheet()
+                    },
+                    onSave = {
+                        viewModel.saveDeck {
+                            showSheet = false
+                            selectedDeckId = null
+                        }
+                    }
+                )
+            }
+        }
+
         val deckToDelete = selectedDeck
         if (showDeleteDeckDialog && deckToDelete != null) {
             AlertDialog(
@@ -281,21 +368,60 @@ fun DeckLabScreen(
             )
         }
 
-        if (showEditorComingSoon) {
+        if (showDiscardDeckDialog) {
             AlertDialog(
-                onDismissRequest = { showEditorComingSoon = false },
+                onDismissRequest = { showDiscardDeckDialog = false },
                 containerColor = AppColors.card,
-                title = { Text("Modifica in arrivo", color = AppColors.textPrimary, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        text = AppLocale.deckDiscardTitle,
+                        color = AppColors.textPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 text = {
                     Text(
-                        "Su iPhone per ora i mazzi si guardano, si duplicano e si esportano. Per crearli e modificarli usa ancora l'app Android: arrivano presto anche qui.",
+                        text = AppLocale.deckDiscardBody,
                         color = AppColors.textSecondary,
                         fontSize = 13.sp
                     )
                 },
                 confirmButton = {
-                    TextButton(onClick = { showEditorComingSoon = false }) { Text("Ok", color = AppColors.blue) }
+                    // Continuare e' la scelta sicura: sta dove arriva il pollice.
+                    Button(
+                        onClick = {
+                            showDiscardDeckDialog = false
+                            // Rete di sicurezza: se il pannello si fosse chiuso
+                            // lo stesso, "continua" deve riportare dov'eri.
+                            if (!sheetState.isVisible) {
+                                deckScope.launch { sheetState.show() }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.blue),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(AppLocale.deckDiscardKeepEditing, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { closeDeckSheet() }) {
+                        Text(AppLocale.deckDiscardConfirm, color = AppColors.red)
+                    }
                 }
+            )
+        }
+
+        // Deck nuovo: dove finiscono le carte che non possiedi. Chiudere senza
+        // scegliere non apre l'editor: e' una rinuncia, non un valore di default.
+        if (showNewDeckSourceDialog) {
+            DeckCardSourceDialog(
+                prompt = AppLocale.deckSourceNewDeckQuestion,
+                onChoose = { source ->
+                    showNewDeckSourceDialog = false
+                    viewModel.chooseDeckCardSource(source)
+                    showSheet = true
+                },
+                onDismiss = { showNewDeckSourceDialog = false }
             )
         }
 
