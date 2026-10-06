@@ -76,3 +76,13 @@ data class Deck(
     fun chosenSpriteCovers(): List<String> =
         displayCoverImageUrls().filter { PokemonSpriteResolver.isSpriteUrl(it) }
 }
+
+/** L'analisi di un mazzo, calcolata e mai salvata: DeckAnalysis di Android. */
+data class DeckAnalysis(
+    val typesCount: Map<String, Int> = emptyMap(),
+    val commonWeaknesses: List<String> = emptyList(),
+    val averageHp: Double = 0.0,
+    val recommendedEnergy: List<String> = emptyList(),
+    val synergies: List<String> = emptyList(),
+    val supertypesCount: Map<String, Int> = emptyMap()
+)

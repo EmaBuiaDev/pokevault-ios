@@ -64,8 +64,10 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Provare su Appetize album e chase
 - [x] Competitive, parte 1: hub, Match log (tornei, partite, statistiche e matchup) sugli stessi documenti di Android; limite di 1 torneo senza Premium
 - [x] Competitive, parte 2: Hand Simulator (Prova e Analisi), mani salvate e prova gratuita sul telefono come su Android
-- [ ] Competitive, parte 3: Deck Lab
-- [ ] Provare su Appetize il Match log e l'Hand Simulator
+- [x] Deck Lab 3a: elenco con i filtri, dettaglio, elimina (con le carte solo-deck rimaste orfane), duplica, esporta la decklist (copia e condividi)
+- [ ] Deck Lab 3b: editor, crea e modifica (carte della collezione e del catalogo, deck di prova)
+- [ ] Deck Lab 3c: import da testo, Meta Deck e Win Tournament
+- [ ] Provare su Appetize il Match log, l'Hand Simulator e i mazzi del Deck Lab
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
 - [ ] Iscrizione all'Apple Developer Program, poi la richiesta per lo Small Business Program (commissione al 15%)

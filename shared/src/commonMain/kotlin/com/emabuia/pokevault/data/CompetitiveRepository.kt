@@ -39,6 +39,47 @@ class CompetitiveRepository(
         read(DECKS, Deck.serializer())
             .sortedByDescending { it.createdAt?.seconds ?: Long.MIN_VALUE }
 
+    /**
+     * saveDeck su Android: id vuoto crea, altrimenti riscrive il documento
+     * intero (set()). Anche createdAt torna "adesso" a ogni salvataggio, come
+     * li': e' quello che tiene in cima all'elenco l'ultimo deck toccato.
+     */
+    suspend fun saveDeck(deck: Deck): String = write { uid, token ->
+        val fields = linkedMapOf<String, Any?>(
+            "name" to deck.name,
+            "cards" to deck.cards,
+            "mainTypes" to deck.mainTypes,
+            "averageHp" to deck.averageHp,
+            "totalCards" to deck.totalCards,
+            "recommendedEnergy" to deck.recommendedEnergy,
+            "coverImageUrl" to deck.coverImageUrl,
+            "coverImageUrls" to deck.displayCoverImageUrls(),
+            // set() riscrive il documento intero: senza questo campo, modificare
+            // un deck di prova lo farebbe tornare un deck normale.
+            "deckOnly" to deck.deckOnly,
+            "createdAt" to ServerNow,
+        )
+        if (deck.id.isEmpty()) {
+            writes.createDocument(uid, token, DECKS, fields)
+        } else {
+            writes.setDocument(uid, token, DECKS, deck.id, fields)
+            deck.id
+        }
+    }
+
+    suspend fun deleteDeck(deckId: String) = write { uid, token ->
+        writes.deleteDocuments(uid, token, DECKS, listOf(deckId))
+    }
+
+    /**
+     * Le carte solo-deck che non servono piu' a nessun deck. Non toccano i
+     * totali del profilo: entrando non li avevano toccati (deleteCard su Android).
+     */
+    suspend fun deleteDeckOnlyCards(cardIds: List<String>) {
+        if (cardIds.isEmpty()) return
+        write { uid, token -> writes.deleteDocuments(uid, token, CARDS, cardIds) }
+    }
+
     // ── Tornei ──────────────────────────────────────────────────────────────
 
     /**
@@ -150,5 +191,6 @@ class CompetitiveRepository(
         private const val DECKS = "decks"
         private const val TOURNAMENTS = "tournaments"
         private const val MATCHES = "match_logs"
+        private const val CARDS = "cards"
     }
 }

@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.data
 
+import com.emabuia.pokevault.data.model.Deck
 import com.emabuia.pokevault.data.model.MatchLog
 import com.emabuia.pokevault.data.model.Timestamp
 import com.emabuia.pokevault.data.model.Tournament
@@ -131,6 +132,30 @@ class CompetitiveRepositoryTest {
         assertFalse("updateMask" in write)
         assertTrue(write["update"]!!.jsonObject["name"]!!.jsonPrimitive.content.endsWith("/match_logs/m1"))
         assertEquals("2026-05-28T20:26:40Z", write.value("createdAt", "timestampValue"))
+    }
+
+    @Test
+    fun aDuplicatedDeckHasAndroidsFieldsAndStaysATestDeck() = runTest {
+        repository().saveDeck(
+            Deck(name = "Dragapult (Copia)", cards = listOf("c1", "c1"), totalCards = 2, deckOnly = true,
+                coverImageUrls = listOf("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/887.png"))
+        )
+        val write = writes.single()
+        assertEquals(
+            setOf("name", "cards", "mainTypes", "averageHp", "totalCards", "recommendedEnergy", "coverImageUrl", "coverImageUrls", "deckOnly", "createdAt"),
+            write.fields().keys,
+        )
+        assertEquals("true", write.value("deckOnly", "booleanValue"))
+        // Le copie sono voci ripetute dell'array, come su Android.
+        assertEquals(2, write.fields()["cards"]!!.jsonObject["arrayValue"]!!.jsonObject["values"]!!.jsonArray.size)
+    }
+
+    @Test
+    fun deckOnlyCardsAreDeletedWithoutTouchingTheProfileTotals() = runTest {
+        repository().deleteDeckOnlyCards(listOf("c1", "c2"))
+        val deleted = writes.map { it["delete"]!!.jsonPrimitive.content.substringAfter("/documents/users/uid-1/") }
+        assertEquals(listOf("cards/c1", "cards/c2"), deleted)
+        assertTrue(writes.none { "transform" in it })
     }
 
     @Test

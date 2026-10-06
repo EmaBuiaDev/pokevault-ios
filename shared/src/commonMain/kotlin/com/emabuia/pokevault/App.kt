@@ -38,6 +38,7 @@ import com.emabuia.pokevault.screens.competitive.AddMatchScreen
 import com.emabuia.pokevault.screens.competitive.AddTournamentScreen
 import com.emabuia.pokevault.screens.competitive.CompetitiveHubScreen
 import com.emabuia.pokevault.screens.competitive.HandSimulatorScreen
+import com.emabuia.pokevault.screens.deck.DeckLabScreen
 import com.emabuia.pokevault.screens.competitive.MatchLogScreen
 import com.emabuia.pokevault.screens.competitive.TournamentDetailScreen
 import com.emabuia.pokevault.util.PokemonSpriteResolver
@@ -128,6 +129,9 @@ object MatchLogDestination
 
 @Serializable
 object HandSimulatorDestination
+
+@Serializable
+object DeckLabDestination
 
 /** [tournamentId] null: torneo nuovo. */
 @Serializable
@@ -344,11 +348,17 @@ fun App() {
                             RequireLogin { _, _ ->
                                 CompetitiveHubScreen(
                                     onBack = { navController.popBackStack() },
-                                    onNavigateToDeckLab = { navController.navigate(ComingSoonDestination("Deck Lab")) },
+                                    onNavigateToDeckLab = { navController.navigate(DeckLabDestination) },
                                     onNavigateToMatchLog = { navController.navigate(MatchLogDestination) },
                                     onNavigateToHandSimulator = { navController.navigate(HandSimulatorDestination) },
                                 )
                             }
+                        }
+                        composable<DeckLabDestination> {
+                            DeckLabScreen(
+                                onBack = { navController.popBackStack() },
+                                onCardClick = { apiCardId -> navController.navigate(CardByApiIdDestination(apiCardId)) },
+                            )
                         }
                         composable<HandSimulatorDestination> {
                             HandSimulatorScreen(
