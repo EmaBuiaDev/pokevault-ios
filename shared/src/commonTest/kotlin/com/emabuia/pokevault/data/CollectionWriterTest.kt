@@ -43,6 +43,8 @@ class CollectionWriterTest {
     private val queries = mutableListOf<String>()
     /** Cosa risponde la query delle stampe gia' possedute. */
     private var existingPrints = "[]"
+    /** Cosa risponde la lettura di un documento carta (annulla dello Scanner). */
+    private var cardDocument = "{}"
 
     @AfterTest
     fun cleanUp() {
@@ -70,6 +72,7 @@ class CollectionWriterTest {
                 commits += Json.parseToJsonElement(bodyText(request)).jsonObject["writes"]!!.jsonArray.single().jsonObject
                 respond("{}", HttpStatusCode.OK, json)
             }
+            path.contains("/users/uid-1/cards/") -> respond(cardDocument, HttpStatusCode.OK, json)
             path.endsWith("/users/uid-1/cards") -> respond("""{"documents":[]}""", HttpStatusCode.OK, json)
             else -> respond("", HttpStatusCode.NotFound)
         }
@@ -124,6 +127,22 @@ class CollectionWriterTest {
         val totals = commits[1]["transform"]!!.jsonObject["fieldTransforms"]!!.jsonArray
         assertEquals("2", totals[0].jsonObject["increment"]!!.jsonObject["integerValue"]!!.jsonPrimitive.content)
         assertEquals("5.0", totals[1].jsonObject["increment"]!!.jsonObject["doubleValue"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun undoingAScanRemovesOneCopyOrTheWholeDocument() = runTest {
+        cardDocument = """{"name":"x/cards/doc-1","fields":{"quantity":{"integerValue":"3"},"estimatedValue":{"doubleValue":2.0}}}"""
+        writer().removeOneCopy("doc-1")
+        assertEquals("2", commits[0].field("quantity")["integerValue"]!!.jsonPrimitive.content)
+        assertEquals(listOf("quantity"), commits[0]["updateMask"]!!.jsonObject["fieldPaths"]!!.jsonArray.map { it.jsonPrimitive.content })
+        val totals = commits[1]["transform"]!!.jsonObject["fieldTransforms"]!!.jsonArray
+        assertEquals("-1", totals[0].jsonObject["increment"]!!.jsonObject["integerValue"]!!.jsonPrimitive.content)
+
+        commits.clear()
+        cardDocument = """{"name":"x/cards/doc-1","fields":{"quantity":{"integerValue":"1"},"deckOnly":{"booleanValue":true}}}"""
+        writer().removeOneCopy("doc-1")
+        // Ultima copia: via il documento; solo-deck: niente totali.
+        assertTrue(commits.single()["delete"]!!.jsonPrimitive.content.endsWith("/cards/doc-1"))
     }
 
     @Test

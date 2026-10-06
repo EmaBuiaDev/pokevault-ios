@@ -68,7 +68,7 @@ object ItalianCardLookup {
     fun normalizeCardNameForComparison(raw: String?): String =
         IllustratorNames.stripDiacritics(raw.orEmpty().lowercase()).replace(NON_ALNUM, "")
 
-    private fun matchesItalianExpansionHint(expansionId: String, expectedSetId: String): Boolean {
+    internal fun matchesItalianExpansionHint(expansionId: String, expectedSetId: String): Boolean {
         val candidates = linkedSetOf<String>()
         preferredBaseSetCodeForItalianExpansion(expansionId)?.let { code ->
             SetCodeMapper.normalizeDecklistSetCode(code)?.lowercase()?.let(candidates::add)

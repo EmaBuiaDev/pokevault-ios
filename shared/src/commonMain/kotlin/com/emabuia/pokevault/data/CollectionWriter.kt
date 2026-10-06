@@ -31,6 +31,8 @@ class CollectionWriter(
     /**
      * Una carta del catalogo in collezione: addCardWithDetails di
      * SetDetailViewModel + addCard di FirestoreRepository, su Android.
+     * Restituisce l'id del documento (nuovo, o la stampa che e' cresciuta):
+     * lo Scanner lo usa per l'annulla.
      */
     suspend fun addFromCatalog(
         card: Card,
@@ -40,8 +42,27 @@ class CollectionWriter(
         quantity: Int,
         condition: String,
         language: String,
-    ) {
-        addPrint(card, expansionName, price, variant, quantity, condition, language)
+    ): String = addPrint(card, expansionName, price, variant, quantity, condition, language)
+
+    /**
+     * Toglie una copia da un documento: removeOneCopy su Android, l'annulla
+     * dello Scanner. All'ultima copia il documento se ne va. I totali si
+     * muovono solo per le carte possedute.
+     */
+    suspend fun removeOneCopy(cardId: String) {
+        val (uid, token) = credentials()
+        val current = writes.getCard(uid, token, cardId) ?: error("carta non trovata")
+        val quantity = current.int("quantity") ?: 1
+        val deckOnly = current.boolean("deckOnly") ?: false
+        val value = current.double("estimatedValue") ?: 0.0
+        if (quantity <= 1) {
+            writes.deleteCard(uid, token, cardId)
+            if (!deckOnly) bestEffortTotals(uid, token, -quantity.toLong().coerceAtLeast(1), -value * quantity.coerceAtLeast(1))
+        } else {
+            writes.updateCard(uid, token, cardId, mapOf("quantity" to quantity - 1))
+            if (!deckOnly) bestEffortTotals(uid, token, -1, -value)
+        }
+        collection.notifyChanged()
     }
 
     /**

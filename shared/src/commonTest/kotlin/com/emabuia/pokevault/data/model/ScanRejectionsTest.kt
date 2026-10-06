@@ -21,7 +21,7 @@ class ScanRejectionsTest {
 
     /** Il bug segnalato. */
     @Test
-    fun `tolta la carta dall'inquadratura, quando torna e' di nuovo proponibile`() {
+    fun `tolta la carta dall'inquadratura - quando torna e' di nuovo proponibile`() {
         val r = ScanRejections()
         r.onNumberRead("57/198")
         r.reject(listOf("giusta"))
@@ -40,7 +40,7 @@ class ScanRejectionsTest {
     }
 
     @Test
-    fun `annullare tocca solo l'ultimo scarto, non quelli prima`() {
+    fun `annullare tocca solo l'ultimo scarto - non quelli prima`() {
         val r = ScanRejections()
         r.onNumberRead("57/198")
         r.reject(listOf("a", "b", "c"))

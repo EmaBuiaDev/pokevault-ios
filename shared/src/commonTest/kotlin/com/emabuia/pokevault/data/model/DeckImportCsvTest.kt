@@ -9,7 +9,7 @@ import kotlin.test.Test
 class DeckImportCsvTest {
 
     @Test
-    fun `virgola, punto e virgola e tab danno lo stesso risultato`() {
+    fun `virgola - punto e virgola e tab danno lo stesso risultato`() {
         val attese = listOf("4,Charizard ex,OBF,125", "4;Charizard ex;OBF;125", "4\tCharizard ex\tOBF\t125")
         attese.forEach { riga ->
             val card = DeckImportParser.parse(riga).cards.single()

@@ -3,6 +3,7 @@ package com.emabuia.pokevault.firebase
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
@@ -85,6 +86,19 @@ class FirestoreWrites(
             val id = document["name"]?.jsonPrimitive?.content?.substringAfterLast('/') ?: return@mapNotNull null
             id to firestoreFieldsToJson(document["fields"]?.jsonObject ?: JsonObject(emptyMap()))
         }
+    }
+
+    /** Un documento carta, come JSON semplice; null se non c'e'. */
+    suspend fun getCard(uid: String, idToken: String, cardId: String): JsonObject? {
+        val response = client.get("$api/users/$uid/cards/$cardId") {
+            expectSuccess = false
+            bearerAuth(idToken)
+        }
+        if (response.status.value == 404) return null
+        val text = response.bodyAsText()
+        check(response.status.isSuccess()) { "Firestore ${response.status.value}: $text" }
+        val fields = json.parseToJsonElement(text).jsonObject["fields"]?.jsonObject ?: return JsonObject(emptyMap())
+        return firestoreFieldsToJson(fields)
     }
 
     /** Un documento carta nuovo, con l'id generato qui come fa l'SDK. Restituisce l'id. */
