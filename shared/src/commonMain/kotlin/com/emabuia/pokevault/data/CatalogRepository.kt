@@ -92,6 +92,21 @@ class CatalogRepository(
         return loaded
     }
 
+    /**
+     * I prezzi di un set per numero di carta, senza le carte: il bilancio di
+     * TradeRadar (getPriceMap dello snapshot italiano su Android). Gia' in
+     * memoria se l'espansione e' stata aperta; senza rete e senza cache, vuoto.
+     */
+    suspend fun pricesOf(expansionId: String): Map<String, PriceEntry> {
+        cardsMemory[expansionId]?.let { return it.prices }
+        return try {
+            cachedOrFetch("prices_$expansionId", PRICES, PRICES_TTL_MS) { api.getExpansionPrices(expansionId) }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emptyMap()
+        }
+    }
+
     // Il catalogo completo in memoria dopo il primo uso: 18.800 carte da
     // decodificare non si rifanno a ogni lettera digitata.
     private var fullCatalog: List<Card>? = null

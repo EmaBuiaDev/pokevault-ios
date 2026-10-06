@@ -40,6 +40,11 @@ import com.emabuia.pokevault.screens.settings.SettingsViewModel
 import com.emabuia.pokevault.screens.stats.StatsViewModel
 import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
 import com.emabuia.pokevault.ui.theme.ThemePreference
+import com.emabuia.pokevault.data.trade.OverpassClient
+import com.emabuia.pokevault.data.trade.TradeApi
+import com.emabuia.pokevault.data.trade.TradePrefs
+import com.emabuia.pokevault.data.trade.platformCoarseLocation
+import com.emabuia.pokevault.screens.trade.TradeRadarViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -88,6 +93,10 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     // Uno solo per l'app: la cache dei tornei e il conto delle richieste a
     // Limitless devono valere per tutte le schermate, come su Android.
     single { LimitlessTcgRepository(get<io.ktor.client.HttpClient>(), get<FileCache>(named(DATA))) }
+    // TradeRadar: lo stesso Worker del catalogo, e le preferenze nei dati dell'app.
+    single { TradeApi(get(), get()) }
+    single { OverpassClient(get()) }
+    single { TradePrefs(get(named(DATA))) }
 }
 
 val viewModelModule = module {
@@ -106,6 +115,7 @@ val viewModelModule = module {
     factoryOf(::HandSimulatorViewModel)
     factoryOf(::DeckLabViewModel)
     factoryOf(::ScannerViewModel)
+    factory { TradeRadarViewModel(get(), get(), get(), get(), get(), get(), get(), get(), platformCoarseLocation()) }
     factory { MetaDeckViewModel(get(), get(), get(named(DATA))) }
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
