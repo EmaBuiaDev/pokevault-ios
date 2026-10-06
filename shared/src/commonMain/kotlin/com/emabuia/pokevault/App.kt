@@ -34,6 +34,7 @@ import com.emabuia.pokevault.screens.album.GoalAlbumDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
+import com.emabuia.pokevault.screens.collection.CollectionCardDetailScreen
 import com.emabuia.pokevault.screens.competitive.AddMatchScreen
 import com.emabuia.pokevault.screens.competitive.AddTournamentScreen
 import com.emabuia.pokevault.screens.competitive.CompetitiveHubScreen
@@ -153,6 +154,10 @@ object ScannerDestination
 @Serializable
 object TradeRadarDestination
 
+/** Una carta della collezione, con tutte le sue stampe: [key] e' la chiave della tessera. */
+@Serializable
+data class CollectionCardDestination(val key: String)
+
 /** [tournamentId] null: torneo nuovo. */
 @Serializable
 data class AddTournamentDestination(val tournamentId: String? = null)
@@ -245,6 +250,7 @@ fun App() {
                                     session = session,
                                     onLogout = onLogout,
                                     onAddCard = { navController.selectTab(BottomTab.POKEDEX) },
+                                    onCardClick = { key -> navController.navigate(CollectionCardDestination(key)) },
                                 )
                             }
                         }
@@ -436,6 +442,15 @@ fun App() {
                                 ScannerScreen(
                                     onBack = { navController.popBackStack() },
                                     onManualSearch = { navController.selectTab(BottomTab.POKEDEX) },
+                                )
+                            }
+                        }
+                        composable<CollectionCardDestination> { entry ->
+                            RequireLogin { _, _ ->
+                                CollectionCardDetailScreen(
+                                    cardId = entry.toRoute<CollectionCardDestination>().key,
+                                    onBack = { navController.popBackStack() },
+                                    onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
                                 )
                             }
                         }

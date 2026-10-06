@@ -1326,4 +1326,26 @@ object AppLocale {
         isItalian -> if (pending == 1) "TradeRadar, 1 proposta ti aspetta" else "TradeRadar, $pending proposte ti aspettano"
         else -> if (pending == 1) "TradeRadar, 1 offer is waiting for you" else "TradeRadar, $pending offers are waiting for you"
     }
+
+    // Dettaglio carta della collezione: gli stessi testi dell'app Android.
+    // Solo su iOS: su Android una scrittura fallita non diceva niente.
+    val detailSaveFailed: String get() = "Modifica non salvata: controlla la connessione e riprova"
+    val averagePrice: String get() = "Prezzo medio"
+    val cardNumberLabel: String get() = "Numero"
+    val detailCertification: String get() = "Certificazione"
+    val detailDeleteVariant: String get() = "Questa variante verrà rimossa"
+    val detailFlipHint: String get() = "Trascina per girarla"
+    val detailGradeShort: String get() = "Voto"
+    fun detailPendingChanges(count: Int): String =
+        if (count == 1) "1 modifica da salvare" else "$count modifiche da salvare"
+    val detailTotalCopies: String get() = "Copie totali"
+    val details: String get() = "Dettagli"
+    val estimatedValue: String get() = "Valore stimato"
+    val livePrices: String get() = "Prezzi Live"
+    val livePricesUnavailable: String get() = "Prezzi live non disponibili per questa carta"
+    val loadingPrices: String get() = "Caricamento prezzi..."
+    val minPrice: String get() = "Prezzo minimo"
+    val myVariantsLabel: String get() = "Varianti in tuo possesso:"
+    val noCardFound: String get() = "Carta non trovata"
+    val trend: String get() = "Trend"
 }

@@ -61,6 +61,10 @@ data class PriceEntry(
     val avg: Double? = null,
     val low: Double? = null,
     val trend: Double? = null,
+    // Medie Cardmarket di ieri, 7 e 30 giorni: il grafichino del dettaglio carta.
+    val avg1: Double? = null,
+    val avg7: Double? = null,
+    val avg30: Double? = null,
     // Ripiego TCGPlayer in dollari per i set senza Cardmarket (sma, bwp).
     val usd: Double? = null,
     val usdLow: Double? = null,
@@ -78,6 +82,44 @@ data class PriceEntry(
         return dollars?.let { "$ ${formatAmount(it)}" }
     }
 }
+
+/**
+ * I prezzi del dettaglio carta: PokeWalletPriceData di Android, con gli stessi
+ * nomi. Qui arrivano tutti dal Worker ([PriceEntry]), senza PokeWallet.
+ */
+data class LivePrices(
+    val eurAvg: Double? = null,
+    val eurLow: Double? = null,
+    val eurTrend: Double? = null,
+    val eurAvg1: Double? = null,
+    val eurAvg7: Double? = null,
+    val eurAvg30: Double? = null,
+    val usdMarket: Double? = null,
+    val usdLow: Double? = null,
+    val cardMarketUrl: String? = null,
+    val tcgPlayerUrl: String? = null,
+) {
+    /** Almeno un prezzo in euro. */
+    val hasEurPrices: Boolean
+        get() = eurAvg != null || eurLow != null || eurTrend != null
+
+    /** Le tre medie ci sono tutte: il grafichino si puo' disegnare. */
+    val hasSparklineData: Boolean
+        get() = eurAvg1 != null && eurAvg7 != null && eurAvg30 != null
+}
+
+fun PriceEntry.toLivePrices(): LivePrices = LivePrices(
+    eurAvg = avg,
+    eurLow = low,
+    eurTrend = trend,
+    eurAvg1 = avg1,
+    eurAvg7 = avg7,
+    eurAvg30 = avg30,
+    usdMarket = usd,
+    usdLow = usdLow,
+    // Il Worker ha solo il link a Cardmarket: quello di TCGPlayer resta spento.
+    cardMarketUrl = url,
+)
 
 /** `GET /ita/prices/{id}.json`: le chiavi sono i numeri di carta ("1", "GG01"). */
 @Serializable

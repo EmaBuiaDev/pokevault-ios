@@ -124,20 +124,20 @@ private fun ValueBucket.label(): String = when (this) {
  * Le mie carte, come su Android: **per espansione** (la fisarmonica) o
  * **tutte** in una griglia unica, con ricerca, filtri e ordinamenti.
  *
- * Al tocco si aprono le stampe possedute con le copie da cambiare e il
- * cestino. La selezione multipla per cancellare tante carte insieme non c'e'
+ * Al tocco si apre il dettaglio della carta (CollectionCardDetailScreen),
+ * come su Android. La selezione multipla per cancellare tante carte insieme non c'e'
  * ancora: e' l'operazione piu' pericolosa, arriva con la sua conferma.
  */
 @Composable
-fun CollectionScreen(session: Session, onLogout: () -> Unit, onAddCard: () -> Unit = {}) {
+fun CollectionScreen(
+    session: Session,
+    onLogout: () -> Unit,
+    onAddCard: () -> Unit = {},
+    onCardClick: (String) -> Unit = {},
+) {
     val viewModel = koinViewModel<CollectionViewModel>(key = session.uid)
     val state = viewModel.uiState
     var showFilters by remember { mutableStateOf(false) }
-
-    // La chiave e non il gruppo: dopo una modifica la collezione si ricarica e
-    // la finestra deve mostrare i numeri nuovi (e chiudersi se la carta non c'e' piu').
-    var selectedKey by remember { mutableStateOf<String?>(null) }
-    val selected = selectedKey?.let { key -> state.groups.firstOrNull { it.key == key } }
 
     val hasActiveFilters = !state.filter.isEmpty
     // In vista per espansione, un ordinamento diverso dal numero apre le
@@ -243,7 +243,7 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit, onAddCard: () -> Un
                     gridColumns = state.gridColumns,
                     selectedKeys = emptySet(),
                     isSelectionMode = false,
-                    onClick = { selectedKey = it },
+                    onClick = onCardClick,
                     onLongClick = {},
                 )
                 else -> ByExpansionContent(
@@ -256,7 +256,7 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit, onAddCard: () -> Un
                     gridColumns = state.gridColumns,
                     selectedKeys = emptySet(),
                     isSelectionMode = false,
-                    onClick = { selectedKey = it },
+                    onClick = onCardClick,
                     onLongClick = {},
                 )
             }
@@ -267,15 +267,6 @@ fun CollectionScreen(session: Session, onLogout: () -> Unit, onAddCard: () -> Un
         FilterSheet(state = state, viewModel = viewModel, onDismiss = { showFilters = false })
     }
 
-    selected?.let { group ->
-        CardGroupDialog(
-            group = group,
-            onQuantity = viewModel::setQuantity,
-            onDelete = viewModel::deletePrint,
-            onGrading = viewModel::saveGrading,
-            onDismiss = { selectedKey = null },
-        )
-    }
 }
 
 // ── Riepilogo in cima ─────────────────────────────────────────────────────────
@@ -1423,117 +1414,6 @@ private fun CollectionCardListItem(
         }
         if (!isSelectionMode) {
             Icon(Icons.Default.ChevronRight, null, tint = AppColors.textMuted)
-        }
-    }
-}
-
-
-/** Una carta con le sue stampe: quante copie, di che lingua, quanto valgono. */
-@Composable
-private fun CardGroupDialog(
-    group: CardGroup,
-    onQuantity: (PokemonCard, Int) -> Unit,
-    onDelete: (PokemonCard) -> Unit,
-    onGrading: (PokemonCard, Boolean, Float?, String, (String?) -> Unit) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val card = group.representative
-    // Il cestino chiede conferma con un secondo tocco: si toccano dati veri.
-    var pendingDelete by remember { mutableStateOf<String?>(null) }
-    // La stampa di cui si sta scrivendo ente e voto.
-    var grading by remember { mutableStateOf<PokemonCard?>(null) }
-    grading?.let { print ->
-        GradingDialog(
-            print = print,
-            onSave = { isGraded, grade, company, onResult -> onGrading(print, isGraded, grade, company, onResult) },
-            onDismiss = { grading = null },
-        )
-    }
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(shape = RoundedCornerShape(16.dp), color = AppColors.surface) {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                AsyncImage(
-                    model = ImageUrlUtils.safeProxiedImageUrl(card.imageUrl),
-                    contentDescription = card.name,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().aspectRatio(0.72f).clip(RoundedCornerShape(10.dp)),
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(card.name, color = AppColors.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Text(
-                    listOf(group.expansionLabel, card.cardNumber.takeIf { it.isNotBlank() }?.let { "#$it" })
-                        .filterNotNull().joinToString(" · "),
-                    color = AppColors.textSecondary,
-                    fontSize = 13.sp,
-                )
-                val rarity = RarityUtils.getRarityInfo(card.rarity)
-                if (!rarity.isUnknown) RarityMarkWithLabel(rarity, fontSize = 13, modifier = Modifier.padding(top = 4.dp))
-                Spacer(Modifier.height(12.dp))
-                group.cards.forEach { print ->
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(AppColors.card)
-                            .padding(10.dp)
-                    ) {
-                        if (print.isGraded) {
-                            Text(
-                                "${companyLabel(GradedLab.companyKey(print))} ${GradedLab.formatGrade(print.grade)}",
-                                color = AppColors.gold,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                listOf(CardVariants.label(print.variant), print.language, print.condition)
-                                    .filter { it.isNotBlank() }.joinToString(" · "),
-                                color = AppColors.textPrimary,
-                                fontSize = 13.sp,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (print.estimatedValue > 0) {
-                                Text(formatEur(print.estimatedValue), color = AppColors.green, fontSize = 13.sp)
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.weight(1f)) {
-                                // A una copia il meno si ferma: per togliere la stampa c'e' il cestino.
-                                QuantityStepper(
-                                    quantity = print.quantity,
-                                    onDecrease = { if (print.quantity > 1) onQuantity(print, print.quantity - 1) },
-                                    onIncrease = { onQuantity(print, print.quantity + 1) },
-                                )
-                            }
-                            Spacer(Modifier.width(8.dp))
-                            // Il voto della stampa: oro se e' gia' una slab, come le gradate.
-                            IconButton(onClick = { grading = print }) {
-                                Icon(
-                                    Icons.Default.WorkspacePremium,
-                                    contentDescription = AppLocale.gradedCardSection,
-                                    tint = if (print.isGraded) AppColors.gold else AppColors.textMuted,
-                                )
-                            }
-                            if (pendingDelete == print.id) {
-                                TextButton(onClick = { pendingDelete = null; onDelete(print) }) {
-                                    Text("Togli?", color = AppColors.red, fontWeight = FontWeight.Bold)
-                                }
-                            } else {
-                                IconButton(onClick = { pendingDelete = print.id }) {
-                                    Icon(Icons.Default.Delete, contentDescription = AppLocale.removeFromCollection, tint = AppColors.red)
-                                }
-                            }
-                        }
-                    }
-                }
-                TextButton(onClick = onDismiss, modifier = Modifier.padding(top = 8.dp)) { Text("Chiudi") }
-            }
         }
     }
 }
