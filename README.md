@@ -83,7 +83,9 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Notifiche: chiave APNs caricata su Firebase
 - [x] Scanner: fotocamera (AVFoundation) + Apple Vision, stessa logica di Android (consenso fra fotogrammi, carta da confermare o rosa di candidati, modalita' continua, annulla)
 - [ ] Provare lo Scanner su un iPhone vero (su Appetize la fotocamera non c'e')
-- [ ] TradeRadar, per ultimo: la moderazione e l'età (18+) vanno spiegate bene alla revisione
+- [x] TradeRadar: match, proposte, appuntamenti (Apple Mappe), riepilogo della collezione, voti, classifica, segnala e blocca; posizione con CoreLocation al chilometro, tasto Radar al centro della barra. Senza notifiche push (arrivano con la chiave APNs) e con gli sprite del podio fermi (Coil anima le GIF solo su Android)
+- [ ] Provare TradeRadar su un iPhone vero: posizione, mappe, condivisione. Con un account vero si lavora sul server di produzione
+- [ ] Alla revisione spiegare bene la moderazione e l'età (18+) di TradeRadar
 
 ### Fase 6: revisione Apple
 - [ ] Icona senza loghi ufficiali, dicitura "non affiliato a Nintendo / The Pokémon Company"

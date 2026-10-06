@@ -26,7 +26,6 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -52,8 +51,7 @@ class DeckImportFlowTest {
     private val created = CopyOnWriteArrayList<JsonObject>()
 
     // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
-    // schermata: senza, il suo lavoro in corso finisce dopo resetMain e fa
-    // cadere un test di un'altra classe (UncaughtExceptionsBeforeTest).
+    // schermata: smette di partire lavoro nuovo quando il test e' finito.
     private val stores = mutableListOf<ViewModelStore>()
 
     @BeforeTest
@@ -62,7 +60,11 @@ class DeckImportFlowTest {
     @AfterTest
     fun reset() {
         stores.forEach { it.clear() }
-        Dispatchers.resetMain()
+        // Niente resetMain: un lavoro gia' partito su un altro thread (withContext)
+        // torna comunque sul Main per chiudersi, anche a ViewModel cancellato. Senza
+        // Main di prova lancia, e la CI addebita l'errore al test dopo
+        // (UncaughtExceptionsBeforeTest, CI di f969c28, f0f27e0 e 49fa0f3). Unconfined
+        // resta impostato: chi riprende si chiude li', e ogni test lo reimposta.
     }
 
     private fun bodyText(request: HttpRequestData): String = when (val body = request.body) {

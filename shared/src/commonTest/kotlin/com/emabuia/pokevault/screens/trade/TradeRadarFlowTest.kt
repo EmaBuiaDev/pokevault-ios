@@ -32,7 +32,6 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
@@ -70,7 +69,7 @@ class TradeRadarFlowTest {
     private var cardsBroken = false
 
     // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
-    // schermata: senza, il suo lavoro in corso finisce dopo resetMain.
+    // schermata: smette di partire lavoro nuovo quando il test e' finito.
     private val stores = mutableListOf<ViewModelStore>()
 
     @BeforeTest
@@ -79,7 +78,11 @@ class TradeRadarFlowTest {
     @AfterTest
     fun cleanUp() {
         stores.forEach { it.clear() }
-        Dispatchers.resetMain()
+        // Niente resetMain: un lavoro gia' partito su un altro thread (withContext)
+        // torna comunque sul Main per chiudersi, anche a ViewModel cancellato. Senza
+        // Main di prova lancia, e la CI addebita l'errore al test dopo
+        // (UncaughtExceptionsBeforeTest, CI di f969c28, f0f27e0 e 49fa0f3). Unconfined
+        // resta impostato: chi riprende si chiude li', e ogni test lo reimposta.
         if (!SystemFileSystem.exists(Path(dir))) return
         // Un file temporaneo della cache puo' sparire fra la lista e la cancellazione.
         SystemFileSystem.list(Path(dir)).forEach { SystemFileSystem.delete(it, mustExist = false) }
