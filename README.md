@@ -32,6 +32,20 @@ Da Windows i target iOS non si compilano: ci pensa la CI su macOS.
 
 Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano circa 200 al mese.
 
+## Installare su un iPhone senza App Store
+
+`.github/workflows/iphone.yml` parte solo a mano (Actions → **iPhone (ipa da firmare)** → Run workflow,
+anche dall'app GitHub sul telefono) e pubblica `PokeVault.ipa` senza firma: build Release per iPhone vero.
+
+1. Sul PC: iTunes (quello del sito Apple, non del Microsoft Store) e [Sideloadly](https://sideloadly.io).
+2. Scarica l'artifact `PokeVault-iphone` della run, estrai `PokeVault.ipa`.
+3. iPhone collegato col cavo, trascina l'ipa in Sideloadly, inserisci un Apple ID (meglio uno fatto apposta) e Start.
+4. Sull'iPhone: Impostazioni → Privacy e sicurezza → **Modalità sviluppatore** (si riavvia), poi
+   Impostazioni → Generali → VPN e gestione dispositivi → autorizza il profilo.
+
+Con un Apple ID gratuito l'app dura **7 giorni** (poi si reinstalla, i dati restano) e se ne tengono al massimo 3.
+Niente push ne' Sign in with Apple. TradeRadar con un account vero lavora sul server di **produzione**.
+
 ## Cosa resta da fare
 
 ### Fase 1: la filiera (gratis)
