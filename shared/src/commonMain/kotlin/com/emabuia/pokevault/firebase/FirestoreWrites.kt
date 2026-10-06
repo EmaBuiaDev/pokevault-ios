@@ -23,7 +23,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import com.emabuia.pokevault.data.model.Timestamp
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -257,6 +259,10 @@ class FirestoreWrites(
             is Double -> buildJsonObject { put("doubleValue", value) }
             is Float -> buildJsonObject { put("doubleValue", value.toDouble()) }
             is ServerNow -> buildJsonObject { put("timestampValue", Clock.System.now().toString()) }
+            // Una data scelta dall'utente (il giorno di un torneo).
+            is Timestamp -> buildJsonObject {
+                put("timestampValue", Instant.fromEpochSeconds(value.seconds, value.nanoseconds).toString())
+            }
             is List<*> -> buildJsonObject {
                 putJsonObject("arrayValue") { put("values", JsonArray(value.map { toValue(it) })) }
             }

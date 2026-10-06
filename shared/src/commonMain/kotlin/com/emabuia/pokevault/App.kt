@@ -34,6 +34,13 @@ import com.emabuia.pokevault.screens.album.GoalAlbumDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
+import com.emabuia.pokevault.screens.competitive.AddMatchScreen
+import com.emabuia.pokevault.screens.competitive.AddTournamentScreen
+import com.emabuia.pokevault.screens.competitive.CompetitiveHubScreen
+import com.emabuia.pokevault.screens.competitive.MatchLogScreen
+import com.emabuia.pokevault.screens.competitive.TournamentDetailScreen
+import com.emabuia.pokevault.util.PokemonSpriteResolver
+import androidx.compose.runtime.LaunchedEffect
 import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
 import com.emabuia.pokevault.screens.graded.GradedCardsScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorDetailScreen
@@ -112,6 +119,23 @@ object IllustratorsDestination
 @Serializable
 data class IllustratorDetailDestination(val key: String)
 
+@Serializable
+object CompetitiveDestination
+
+@Serializable
+object MatchLogDestination
+
+/** [tournamentId] null: torneo nuovo. */
+@Serializable
+data class AddTournamentDestination(val tournamentId: String? = null)
+
+@Serializable
+data class TournamentDetailDestination(val tournamentId: String)
+
+/** [matchId] null: partita nuova. */
+@Serializable
+data class AddMatchDestination(val tournamentId: String, val matchId: String? = null)
+
 /** Una sezione dell'app Android che su iOS non c'e' ancora. */
 @Serializable
 data class ComingSoonDestination(val title: String)
@@ -130,6 +154,9 @@ private const val NOT_PORTED_YET = "Questa sezione c'e' sull'app Android e arriv
 fun App() {
     val themeMode by koinInject<ThemePreference>().mode.collectAsState()
     val systemDark = isSystemInDarkTheme()
+    // La tabella degli sprite si legge una volta, fuori dal thread principale:
+    // le righe che la usano si ridisegnano da sole quando e' pronta.
+    LaunchedEffect(Unit) { PokemonSpriteResolver.preload() }
     PokeVaultTheme(
         darkTheme = when (themeMode) {
             ThemeMode.LIGHT -> false
@@ -161,6 +188,7 @@ fun App() {
                                         "wishlist" -> navController.navigate(WishlistDestination)
                                         "collector_lab" -> navController.navigate(CollectorLabDestination)
                                         "graded" -> navController.navigate(GradedDestination)
+                                        "competitive" -> navController.navigate(CompetitiveDestination)
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
                                 },
@@ -306,6 +334,47 @@ fun App() {
                                     onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
                                 )
                             }
+                        }
+                        composable<CompetitiveDestination> {
+                            // Mazzi, tornei e partite stanno sull'account: serve l'accesso.
+                            RequireLogin { _, _ ->
+                                CompetitiveHubScreen(
+                                    onBack = { navController.popBackStack() },
+                                    onNavigateToDeckLab = { navController.navigate(ComingSoonDestination("Deck Lab")) },
+                                    onNavigateToMatchLog = { navController.navigate(MatchLogDestination) },
+                                    onNavigateToHandSimulator = { navController.navigate(ComingSoonDestination("Hand Simulator")) },
+                                )
+                            }
+                        }
+                        composable<MatchLogDestination> {
+                            MatchLogScreen(
+                                onBack = { navController.popBackStack() },
+                                onAddTournament = { id -> navController.navigate(AddTournamentDestination(id)) },
+                                onTournamentClick = { id -> navController.navigate(TournamentDetailDestination(id)) },
+                            )
+                        }
+                        composable<AddTournamentDestination> { entry ->
+                            AddTournamentScreen(
+                                onBack = { navController.popBackStack() },
+                                editTournamentId = entry.toRoute<AddTournamentDestination>().tournamentId,
+                            )
+                        }
+                        composable<TournamentDetailDestination> { entry ->
+                            val tournamentId = entry.toRoute<TournamentDetailDestination>().tournamentId
+                            TournamentDetailScreen(
+                                tournamentId = tournamentId,
+                                onBack = { navController.popBackStack() },
+                                onAddMatch = { id -> navController.navigate(AddMatchDestination(id)) },
+                                onEditMatch = { id, matchId -> navController.navigate(AddMatchDestination(id, matchId)) },
+                            )
+                        }
+                        composable<AddMatchDestination> { entry ->
+                            val destination = entry.toRoute<AddMatchDestination>()
+                            AddMatchScreen(
+                                onBack = { navController.popBackStack() },
+                                tournamentId = destination.tournamentId,
+                                editMatchId = destination.matchId,
+                            )
                         }
                         composable<ComingSoonDestination> { entry ->
                             ComingSoonScreen(

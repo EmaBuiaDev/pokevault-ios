@@ -62,6 +62,10 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [ ] Provare su Appetize wishlist, illustratori e gradate
 - [x] Collector Lab completo: hub, Album (griglia e raccoglitore) e Chase per set
 - [ ] Provare su Appetize album e chase
+- [x] Competitive, parte 1: hub, Match log (tornei, partite, statistiche e matchup) sugli stessi documenti di Android; limite di 1 torneo senza Premium
+- [ ] Competitive, parte 2: Hand Simulator (motore, valutazione della mano e componenti gia' portati e testati)
+- [ ] Competitive, parte 3: Deck Lab
+- [ ] Provare su Appetize il Match log
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
 - [ ] Iscrizione all'Apple Developer Program, poi la richiesta per lo Small Business Program (commissione al 15%)

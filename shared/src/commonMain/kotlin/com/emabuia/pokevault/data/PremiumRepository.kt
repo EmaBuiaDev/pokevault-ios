@@ -52,5 +52,6 @@ class PremiumRepository(
         const val FREE_WISHLIST_LIMIT = 1
         const val FREE_ALBUM_LIMIT = 1
         const val FREE_GOAL_ALBUM_LIMIT = 1
+        const val FREE_TOURNAMENT_LIMIT = 1
     }
 }

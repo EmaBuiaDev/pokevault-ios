@@ -277,4 +277,15 @@ object CardOptions {
  * il timestampValue della REST API in questa forma.
  */
 @Serializable
-data class Timestamp(val seconds: Long = 0, val nanoseconds: Int = 0)
+data class Timestamp(val seconds: Long = 0, val nanoseconds: Int = 0) {
+    /** Come Timestamp.toDate().time su Android. */
+    fun toEpochMillis(): Long = seconds * 1000 + nanoseconds / 1_000_000
+
+    companion object {
+        @OptIn(kotlin.time.ExperimentalTime::class)
+        fun now(): Timestamp = fromEpochMillis(kotlin.time.Clock.System.now().toEpochMilliseconds())
+
+        fun fromEpochMillis(millis: Long): Timestamp =
+            Timestamp(seconds = millis.floorDiv(1000), nanoseconds = (millis.mod(1000L) * 1_000_000).toInt())
+    }
+}
