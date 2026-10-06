@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>TradeRadar usa la tua posizione approssimativa (una zona di circa 5 km) per trovare scambi vicino a te. La posizione esatta non lascia il telefono.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>PokeVault usa la fotocamera per riconoscere le carte e aggiungerle alla tua collezione.</string>
 	<key>CFBundleDevelopmentRegion</key>
