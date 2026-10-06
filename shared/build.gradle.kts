@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import java.util.Properties
 
 plugins {
@@ -143,4 +144,15 @@ val generateFirebaseConfig = tasks.register<GenerateFirebaseConfig>("generateFir
 
 kotlin.sourceSets.commonMain {
     kotlin.srcDir(generateFirebaseConfig.map { it.outputDir })
+}
+
+// Un test che cade in CI deve dire dove e perche': senza, il log mostra solo
+// il nome e la riga di runTest (la CI di f0f27e0 non diceva quale istruzione).
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("failed")
+        exceptionFormat = TestExceptionFormat.FULL
+        showStackTraces = true
+        showCauses = true
+    }
 }

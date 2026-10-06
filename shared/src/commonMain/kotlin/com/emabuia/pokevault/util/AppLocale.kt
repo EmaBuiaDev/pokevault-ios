@@ -1183,6 +1183,7 @@ object AppLocale {
     val tradeRadarReportSend: String get() = "Invia"
     val tradeRadarReportText: String get() = "Un negozio che conosci e che non è nella lista. Lo vedete subito tu e chi scambia con te; dopo che lo abbiamo verificato lo vedranno tutti."
     fun tradeRadarReportTitle(name: String): String = "Segnala $name"
+    val tradeRadarReportTitle: String get() = "Segnala un negozio"
     val tradeRadarReportUserSend: String get() = "Invia segnalazione"
     fun tradeRadarReserved(count: Int): String = "$count in un accordo"
     fun tradeRadarRowSummary(take: Int, give: Int): String = "Ricevi $take · Dai $give"
@@ -1317,4 +1318,12 @@ object AppLocale {
     fun tradeRadarYouName(nickname: String): String = "$nickname (tu)"
     fun tradeRadarYourRank(rank: Int, total: Int): String = "Sei $rank° su $total"
     fun tradeRadarYourRating(rating: String): String = "Il tuo voto: $rating"
+
+    // Barra in basso, tasto TradeRadar: gli stessi testi dell'app Android.
+    val navTradeRadar: String get() = "Radar"
+    fun navTradeRadarDescription(pending: Int): String = when {
+        pending <= 0 -> "TradeRadar"
+        isItalian -> if (pending == 1) "TradeRadar, 1 proposta ti aspetta" else "TradeRadar, $pending proposte ti aspettano"
+        else -> if (pending == 1) "TradeRadar, 1 offer is waiting for you" else "TradeRadar, $pending offers are waiting for you"
+    }
 }

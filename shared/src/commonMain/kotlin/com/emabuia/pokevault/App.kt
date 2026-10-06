@@ -53,6 +53,15 @@ import com.emabuia.pokevault.screens.wishlist.WishlistScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
 import com.emabuia.pokevault.ui.navigation.BottomTab
 import com.emabuia.pokevault.ui.navigation.PokeVaultBottomBar
+import com.emabuia.pokevault.ui.navigation.TradeRadarBarButton
+import com.emabuia.pokevault.data.AuthRepository
+import com.emabuia.pokevault.data.trade.TradeApi
+import com.emabuia.pokevault.data.trade.TradeBadge
+import com.emabuia.pokevault.data.trade.TradePrefs
+import com.emabuia.pokevault.screens.trade.TradeRadarScreen
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.launch
 import com.emabuia.pokevault.ui.theme.AppColors
 import com.emabuia.pokevault.ui.theme.PokeVaultTheme
 import com.emabuia.pokevault.ui.theme.ThemeMode
@@ -141,6 +150,9 @@ object DeckLabDestination
 @Serializable
 object ScannerDestination
 
+@Serializable
+object TradeRadarDestination
+
 /** [tournamentId] null: torneo nuovo. */
 @Serializable
 data class AddTournamentDestination(val tournamentId: String? = null)
@@ -191,6 +203,19 @@ fun App() {
                 navController.navigate(ExpansionCardsDestination(expansion.id, expansion.name))
             }
 
+            // Il numero sul tasto TradeRadar: si rilegge quando l'app torna in primo
+            // piano (dentro TradeRadar lo aggiorna il ViewModel). Senza accesso e' 0.
+            val session by koinInject<AuthRepository>().session.collectAsState()
+            val tradeApi = koinInject<TradeApi>()
+            val tradePrefs = koinInject<TradePrefs>()
+            val badgeScope = rememberCoroutineScope()
+            LifecycleResumeEffect(session) {
+                val job = badgeScope.launch {
+                    if (session != null) TradeBadge.refresh(tradeApi, tradePrefs.read().appliedClosings) else TradeBadge.update(0)
+                }
+                onPauseOrDispose { job.cancel() }
+            }
+
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.weight(1f).fillMaxWidth()) {
                     NavHost(navController = navController, startDestination = HomeDestination) {
@@ -205,6 +230,7 @@ fun App() {
                                         "collector_lab" -> navController.navigate(CollectorLabDestination)
                                         "graded" -> navController.navigate(GradedDestination)
                                         "competitive" -> navController.navigate(CompetitiveDestination)
+                                        "trade_radar" -> navController.navigate(TradeRadarDestination) { launchSingleTop = true }
                                         else -> navController.navigate(ComingSoonDestination(menuTitle(routeKey)))
                                     }
                                 },
@@ -413,6 +439,16 @@ fun App() {
                                 )
                             }
                         }
+                        composable<TradeRadarDestination> {
+                            // Scambi fra persone vere: serve l'accesso.
+                            RequireLogin { _, _ ->
+                                TradeRadarScreen(
+                                    onBack = { navController.popBackStack() },
+                                    // Su iOS il Premium arriva con StoreKit (dopo l'account Apple a pagamento).
+                                    onPremiumRequired = {},
+                                )
+                            }
+                        }
                         composable<ComingSoonDestination> { entry ->
                             ComingSoonScreen(
                                 title = entry.toRoute<ComingSoonDestination>().title,
@@ -433,7 +469,14 @@ fun App() {
                 // tastiera non serve e ruberebbe spazio al campo su cui si scrive.
                 val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
                 if (selectedTab != null && !keyboardOpen) {
-                    PokeVaultBottomBar(selected = selectedTab, onSelect = { navController.selectTab(it) })
+                    PokeVaultBottomBar(
+                        selected = selectedTab,
+                        onSelect = { navController.selectTab(it) },
+                        // Al centro, fra Carte e Pokedex, come su Android.
+                        tradeRadar = TradeRadarBarButton(pending = TradeBadge.pending) {
+                            navController.navigate(TradeRadarDestination) { launchSingleTop = true }
+                        },
+                    )
                 }
             }
         }
@@ -454,6 +497,5 @@ private fun menuTitle(routeKey: String): String = when (routeKey) {
     "competitive" -> "Competitive"
     "collector_lab" -> "Collector Lab"
     "wishlist" -> "Wishlist"
-    "trade_radar" -> "TradeRadar"
     else -> "In arrivo"
 }

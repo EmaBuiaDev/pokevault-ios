@@ -51,6 +51,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.test.fail
 
 /**
  * TradeRadar su iOS contro un server, un Firestore e un catalogo finti: le
@@ -182,11 +183,17 @@ class TradeRadarFlowTest {
         ).also { vm -> stores += ViewModelStore().apply { put("trade-${stores.size}", vm) } }
     }
 
-    private suspend fun waitFor(tries: Int = 200, condition: () -> Boolean) = withContext(Dispatchers.Default) {
-        repeat(tries) {
+    /**
+     * Aspetta che [condition] diventi vera, fino a 10 secondi (i runner della
+     * CI sono lenti: con 3 la CI di f0f27e0 e' caduta). Se non succede il
+     * test cade qui, con [what], e non piu' avanti su una lista vuota.
+     */
+    private suspend fun waitFor(what: String = "la condizione", condition: () -> Boolean) = withContext(Dispatchers.Default) {
+        repeat(WAIT_TRIES) {
             if (condition()) return@withContext
-            delay(15)
+            delay(20)
         }
+        fail("Dopo 10 secondi non e' vera: $what")
     }
 
     private fun sent(method: HttpMethod, path: String) = tradeCalls.filter { it.first == method && it.second == "/v1/trade/$path" }
@@ -196,11 +203,11 @@ class TradeRadarFlowTest {
         hasProfile = false
         val location = FakeLocation(granted = false)
         val vm = viewModel(location)
-        waitFor { vm.screen is TradeRadarViewModel.Screen.Onboarding }
+        waitFor("attivazione") { vm.screen is TradeRadarViewModel.Screen.Onboarding }
         assertIs<TradeRadarViewModel.Screen.Onboarding>(vm.screen)
 
         vm.activate("Ash", adultConfirmed = true, collectionConsent = true)
-        waitFor { vm.notice != null }
+        waitFor("un avviso") { vm.notice != null }
         assertEquals(TradeRadarViewModel.Problem.NO_LOCATION, vm.notice)
         assertEquals(1, location.asked)
         assertTrue(sent(HttpMethod.Put, "profile").isEmpty())
@@ -211,10 +218,10 @@ class TradeRadarFlowTest {
     fun activationSendsTheZoneAndTheCollection() = runTest {
         hasProfile = false
         val vm = viewModel()
-        waitFor { vm.screen is TradeRadarViewModel.Screen.Onboarding }
+        waitFor("attivazione") { vm.screen is TradeRadarViewModel.Screen.Onboarding }
 
         vm.activate("Ash", adultConfirmed = true, collectionConsent = true)
-        waitFor { vm.screen is TradeRadarViewModel.Screen.Ready && sent(HttpMethod.Put, "haves").isNotEmpty() }
+        waitFor("profilo e offerte inviati") { vm.screen is TradeRadarViewModel.Screen.Ready && sent(HttpMethod.Put, "haves").isNotEmpty() }
         assertIs<TradeRadarViewModel.Screen.Ready>(vm.screen)
 
         // Solo la cella di 5 caratteri, mai le coordinate.
@@ -233,7 +240,7 @@ class TradeRadarFlowTest {
     fun anUnreadableCollectionIsNotSentEmpty() = runTest {
         cardsBroken = true
         val vm = viewModel()
-        waitFor { vm.notice != null }
+        waitFor("un avviso") { vm.notice != null }
         assertEquals(TradeRadarViewModel.Problem.UNAVAILABLE, vm.notice)
         assertTrue(sent(HttpMethod.Put, "owned").isEmpty())
         assertTrue(sent(HttpMethod.Put, "haves").isEmpty())
@@ -242,20 +249,20 @@ class TradeRadarFlowTest {
     @Test
     fun theClosingUpdatesCollectionAndWishlistOnce() = runTest {
         val vm = viewModel()
-        waitFor { vm.proposalsLoaded }
+        waitFor("proposte lette") { vm.proposalsLoaded }
         val done = vm.proposals.single()
         assertTrue(vm.needsCollectionUpdate(done))
         assertEquals(1, vm.proposalsToAnswer)
 
         vm.openClosing(done)
-        waitFor { vm.closing?.loading == false }
+        waitFor("riepilogo pronto") { vm.closing?.loading == false }
         val lines = vm.closing!!.lines
         assertEquals(listOf("doc-1"), lines.first { it.giving }.docIds)
         assertTrue(lines.first { !it.giving }.inWishlist)
 
         commits.clear()
         vm.applyClosing()
-        waitFor { vm.info == TradeRadarViewModel.Info.COLLECTION_UPDATED }
+        waitFor("collezione aggiornata") { vm.info == TradeRadarViewModel.Info.COLLECTION_UPDATED }
         assertNull(vm.closing)
 
         // Una copia data: doc-1 passa da 3 a 2.
@@ -271,14 +278,14 @@ class TradeRadarFlowTest {
         assertFalse(vm.needsCollectionUpdate(done))
         assertTrue("p1" in TradePrefs(FileCache(dir)).read().appliedClosings)
         val reopened = viewModel()
-        waitFor { reopened.proposalsLoaded }
+        waitFor("proposte lette dopo la riapertura") { reopened.proposalsLoaded }
         assertFalse(reopened.needsCollectionUpdate(done))
     }
 
     @Test
     fun introAndTierAreRemembered() = runTest {
         val vm = viewModel()
-        waitFor { vm.proposalsLoaded }
+        waitFor("proposte lette") { vm.proposalsLoaded }
         assertFalse(vm.introSeen)
         vm.markIntroSeen()
         vm.checkTier("silver")
@@ -286,7 +293,7 @@ class TradeRadarFlowTest {
         assertNull(vm.celebration)
 
         val again = viewModel()
-        waitFor { again.proposalsLoaded }
+        waitFor("proposte lette dopo la riapertura") { again.proposalsLoaded }
         assertTrue(again.introSeen)
         again.checkTier("silver")
         assertNull(again.celebration)
@@ -295,6 +302,7 @@ class TradeRadarFlowTest {
     }
 
     private companion object {
+        const val WAIT_TRIES = 500
         val MILANO = 45.4642 to 9.19
 
         const val PIKACHU_FIELDS = """{
