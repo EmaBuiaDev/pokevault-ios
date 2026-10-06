@@ -29,9 +29,13 @@ private object IosCoarseLocation : CoarseLocationSource {
     private val manager by lazy {
         CLLocationManager().apply {
             desiredAccuracy = kCLLocationAccuracyKilometer
-            delegate = Delegate
+            delegate = locationDelegate
         }
     }
+
+    // Una classe e non un object: Kotlin/Native non sa generare un object che
+    // estende NSObject (la compilazione per iOS si ferma con un errore interno).
+    private val locationDelegate = LocationDelegate()
 
     private var pendingPermission: CompletableDeferred<Boolean>? = null
     private var pendingLocation: CompletableDeferred<CLLocation?>? = null
@@ -60,7 +64,7 @@ private object IosCoarseLocation : CoarseLocationSource {
         location?.coordinate?.useContents { latitude to longitude }
     }
 
-    private object Delegate : NSObject(), CLLocationManagerDelegateProtocol {
+    private class LocationDelegate : NSObject(), CLLocationManagerDelegateProtocol {
         @ObjCSignatureOverride
         override fun locationManager(manager: CLLocationManager, didUpdateLocations: List<*>) {
             val last = didUpdateLocations.lastOrNull() as? CLLocation
