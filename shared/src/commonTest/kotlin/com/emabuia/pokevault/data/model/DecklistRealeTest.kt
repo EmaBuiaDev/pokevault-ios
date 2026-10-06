@@ -1,7 +1,7 @@
 package com.emabuia.pokevault.data.model
 
-import org.junit.Assert.*
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.*
+import kotlin.test.Test
 
 /**
  * Una decklist vera, copiata da un import che era andato storto.

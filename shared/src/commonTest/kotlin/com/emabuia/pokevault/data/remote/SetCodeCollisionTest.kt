@@ -1,7 +1,7 @@
 package com.emabuia.pokevault.data.remote
 
-import org.junit.Assert.*
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.*
+import kotlin.test.Test
 
 /**
  * Due set diversi non possono normalizzare allo stesso codice.

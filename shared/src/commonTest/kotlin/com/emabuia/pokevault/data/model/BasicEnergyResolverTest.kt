@@ -1,10 +1,10 @@
 package com.emabuia.pokevault.data.model
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.assertEquals
+import com.emabuia.pokevault.testcompat.assertFalse
+import com.emabuia.pokevault.testcompat.assertNull
+import com.emabuia.pokevault.testcompat.assertTrue
+import kotlin.test.Test
 
 /**
  * Il rischio grosso qui non e' mancare un'energia base: e' scambiare per base

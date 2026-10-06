@@ -1,9 +1,9 @@
 package com.emabuia.pokevault.data.model
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.assertEquals
+import com.emabuia.pokevault.testcompat.assertNull
+import com.emabuia.pokevault.testcompat.assertTrue
+import kotlin.test.Test
 
 /** I casi ai margini dell'import da CSV e dei codici set nuovi. */
 class DeckImportCsvTest {

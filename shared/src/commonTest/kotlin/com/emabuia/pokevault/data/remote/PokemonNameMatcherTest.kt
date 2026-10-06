@@ -1,8 +1,8 @@
 package com.emabuia.pokevault.data.remote
 
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.assertFalse
+import com.emabuia.pokevault.testcompat.assertTrue
+import kotlin.test.Test
 
 class PokemonNameMatcherTest {
 

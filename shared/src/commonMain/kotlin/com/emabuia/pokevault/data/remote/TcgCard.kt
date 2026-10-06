@@ -16,8 +16,14 @@ data class TcgCard(
     val set: TcgSet?,
     val rarity: String?,
     val source: Card,
+    /** Pokémon, Trainer o Energy, come lo ricava il catalogo: serve al matcher dello Scanner. */
+    val supertype: String = "",
+    val hp: String? = null,
+    val subtypes: List<String>? = null,
+    val types: List<String>? = null,
 )
 
 data class TcgImages(val small: String)
 
-data class TcgSet(val id: String, val name: String)
+/** [printedTotal]: il numero dopo la barra ("066/217"), 0 se non si sa. */
+data class TcgSet(val id: String, val name: String, val printedTotal: Int = 0)

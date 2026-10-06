@@ -54,6 +54,10 @@ jobs:
           fi
       - name: Xcode
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+      # I test comuni anche su iOS: le espressioni regolari dei parser (import
+      # dei deck, Scanner) su iOS girano su un altro motore, e la JVM non lo vede.
+      - name: Test comuni sul simulatore iOS
+        run: ./gradlew :shared:iosSimulatorArm64Test
       - name: Build per il simulatore
         run: |
           cd iosApp

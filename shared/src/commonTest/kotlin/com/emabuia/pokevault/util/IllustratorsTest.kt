@@ -1,7 +1,7 @@
 package com.emabuia.pokevault.util
 
-import org.junit.Assert.*
-import org.junit.Test
+import com.emabuia.pokevault.testcompat.*
+import kotlin.test.Test
 
 /**
  * Nomi, conti e ordinamenti della sezione illustratori.
