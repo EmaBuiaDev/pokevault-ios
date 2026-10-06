@@ -1348,4 +1348,83 @@ object AppLocale {
     val myVariantsLabel: String get() = "Varianti in tuo possesso:"
     val noCardFound: String get() = "Carta non trovata"
     val trend: String get() = "Trend"
+
+    // Pannello della carta (Pokedex): gli stessi testi dell'app Android.
+    val close: String get() = "Chiudi"
+    val inCollection: String get() = "Nella tua collezione"
+    val nextCard: String get() = "Carta successiva"
+    val previousCard: String get() = "Carta precedente"
+    val pricesByVariant: String get() = "Prezzi per variante"
+    fun translateSubtype(subtype: String): String {
+        if (subtype.isBlank()) return subtype
+        return subtypeEnToIt[subtype.lowercase().trim()] ?: subtype
+    }
+    private val subtypeEnToIt = mapOf(
+        "pokémon tool" to "Strumento",
+        "pokemon tool" to "Strumento",
+        "item" to "Oggetto",
+        "supporter" to "Supporter",
+        "stadium" to "Stadio",
+        "basic" to "Base",
+        "stage 1" to "Livello 1",
+        // La grafia senza spazio e' quella con cui lo stadio arriva dal catalogo.
+        "stage1" to "Livello 1",
+        "stage2" to "Livello 2",
+        "mega" to "MEGA",
+        "break" to "BREAK",
+        "level-up" to "Livello X",
+        "stage 2" to "Livello 2",
+        "vmax" to "VMAX",
+        "vstar" to "VSTAR",
+        "v-union" to "V-UNION",
+        "tera" to "Tera",
+        "restored" to "Ripristinato",
+        "ex" to "ex",
+        "special energy" to "Energia Speciale",
+        "basic energy" to "Energia Base",
+    )
+
+    // Pokedex: elenco espansioni e ricerca carte: gli stessi testi dell'app Android.
+    val cardHp: String get() = "Punti salute"
+    val cardPrice: String get() = "Prezzo"
+    val cardSeries: String get() = "Serie"
+    val cardType: String get() = "Tipo"
+    val cardVariant: String get() = "Meccanica"
+    val clearFilters: String get() = "Azzera i filtri"
+    val extensions: String get() = "Espansioni"
+    val filterCategoryPrefix: String get() = "Categoria"
+    val loadingFilters: String get() = "Carico i filtri dal catalogo..."
+    val loadingSets: String get() = "Caricamento espansioni..."
+    val noFiltersForSearch: String get() = "Questa ricerca non ha filtri da offrire"
+    val noImage: String get() = "Nessuna immagine"
+    val noResults: String get() = "Nessun risultato trovato"
+    val noResultsWithFilters: String get() = "Nessun risultato con i filtri attivi"
+    val priceFilterCaveat: String get() = "Il prezzo c'e' solo per le espansioni gia' scaricate: filtrando per fascia, le carte senza prezzo restano fuori."
+    fun resultsCount(count: Int) = "$count risultati"
+    fun resultsCountInExpansions(cardCount: Int, setCount: Int) = "$cardCount carte in $setCount espansioni"
+    val searchEmptyHint: String get() = "Scrivi un nome o un numero (67/87)"
+    val searchFiltersHint: String get() = "Restringono i risultati della ricerca"
+    fun searchFor(query: String) = "Cerco \"$query\"..."
+    val searchSetPlaceholder: String get() = "Cerca un'espansione..."
+    fun showAllExpansions(count: Int) = "Tutte le $count espansioni"
+    val showLess: String get() = "Mostra meno"
+    fun translateSupertype(supertype: String): String {
+        if (supertype.isBlank()) return supertype
+        return supertypeEnToIt[supertype.lowercase().trim()] ?: supertype
+    }
+    private val supertypeEnToIt = mapOf(
+        "pokémon" to "Pokémon",
+        "trainer" to "Allenatore",
+        "energy" to "Energia",
+    )
+    fun unrecognizedTotalNotice(total: Int, number: String) = "Il totale /$total non corrisponde a nessuna espansione che conosciamo: qui sotto tutte le carte numero $number."
+
+    // Pokedex: carte di un'espansione: gli stessi testi dell'app Android.
+    val ownedCardsLoadError: String get() = "Impossibile verificare le carte possedute"
+
+    // Pokedex: carte di un'espansione: gli stessi testi dell'app Android.
+    val all: String get() = "Tutti"
+    val loading: String get() = "Caricamento..."
+    val premiumWishlistLimitMessage: String get() = "Hai raggiunto il limite di 1 wishlist gratuita.\n\nPassa a Premium per creare wishlist illimitate!"
+    val premiumWishlistLimitTitle: String get() = "Limite Wishlist raggiunto"
 }

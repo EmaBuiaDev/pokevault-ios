@@ -32,10 +32,8 @@ import com.emabuia.pokevault.firebase.GoogleSignIn
 import com.emabuia.pokevault.firebase.platformGoogleAuthLauncher
 import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.card.CardDetailViewModel
-import com.emabuia.pokevault.screens.cards.ExpansionCardsViewModel
 import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
-import com.emabuia.pokevault.screens.expansions.SearchViewModel
 import com.emabuia.pokevault.screens.settings.SettingsViewModel
 import com.emabuia.pokevault.screens.stats.StatsViewModel
 import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
@@ -45,6 +43,9 @@ import com.emabuia.pokevault.data.trade.TradeApi
 import com.emabuia.pokevault.data.trade.TradePrefs
 import com.emabuia.pokevault.data.trade.platformCoarseLocation
 import com.emabuia.pokevault.screens.trade.TradeRadarViewModel
+import com.emabuia.pokevault.data.PokedexCatalog
+import com.emabuia.pokevault.screens.pokedex.SetsViewModel
+import com.emabuia.pokevault.screens.pokedex.SetDetailViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
@@ -70,6 +71,8 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single<CatalogApi> { KtorCatalogApi(get()) }
     single(named(CACHE)) { FileCache(cacheDir) }
     single { CatalogRepository(get(), get(named(CACHE))) }
+    // Il Pokedex portato da Android: lo stesso catalogo, nella forma TcgSet/TcgCard.
+    single { PokedexCatalog(get()) }
 
     // La sessione sta nei dati dell'app, non nelle cache che il sistema puo' svuotare.
     single(named(DATA)) { FileCache(dataDir) }
@@ -101,7 +104,6 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
 
 val viewModelModule = module {
     factoryOf(::ExpansionsViewModel)
-    factoryOf(::SearchViewModel)
     factoryOf(::AuthViewModel)
     factoryOf(::CollectionViewModel)
     factoryOf(::StatsViewModel)
@@ -115,9 +117,10 @@ val viewModelModule = module {
     factoryOf(::HandSimulatorViewModel)
     factoryOf(::DeckLabViewModel)
     factoryOf(::ScannerViewModel)
+    factoryOf(::SetsViewModel)
+    factoryOf(::SetDetailViewModel)
     factory { TradeRadarViewModel(get(), get(), get(), get(), get(), get(), get(), get(), platformCoarseLocation()) }
     factory { MetaDeckViewModel(get(), get(), get(named(DATA))) }
-    factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(
             expansionId = params.get(0),

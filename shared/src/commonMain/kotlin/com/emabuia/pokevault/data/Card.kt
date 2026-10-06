@@ -83,6 +83,9 @@ data class PriceEntry(
     }
 }
 
+/** Il nome Android: le schermate portate da li' lo usano cosi'. */
+typealias PokeWalletPriceData = LivePrices
+
 /**
  * I prezzi del dettaglio carta: PokeWalletPriceData di Android, con gli stessi
  * nomi. Qui arrivano tutti dal Worker ([PriceEntry]), senza PokeWallet.
@@ -94,6 +97,7 @@ data class LivePrices(
     val eurAvg1: Double? = null,
     val eurAvg7: Double? = null,
     val eurAvg30: Double? = null,
+    val eurVariantType: String? = null,
     val usdMarket: Double? = null,
     val usdLow: Double? = null,
     val cardMarketUrl: String? = null,

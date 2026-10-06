@@ -161,6 +161,15 @@ class CatalogRepository(
         ScannerCatalogSearch.search(loadFullCatalog(), expansions, name, number, setTotal, targetSetId, limit)
     }
 
+    /** Tutto il catalogo italiano, per chi lo scandisce da se' (i filtri del Pokedex). */
+    suspend fun allCards(): List<Card> = loadFullCatalog()
+
+    /** Le espansioni, scaricandole se non ci sono ancora; vuoto se la rete non risponde. */
+    suspend fun expansionList(): List<Expansion> {
+        runCatching { ensureExpansions() }
+        return (expansions.value as? ExpansionsState.Ready)?.expansions.orEmpty()
+    }
+
     private suspend fun loadFullCatalog(): List<Card> =
         fullCatalog ?: cachedOrFetch(KEY_CATALOG, CARDS, CATALOG_TTL_MS) { api.getFullCatalog() }
             .also { fullCatalog = it }

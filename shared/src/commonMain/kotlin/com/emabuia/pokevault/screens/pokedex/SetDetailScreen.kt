@@ -1,0 +1,1666 @@
+package com.emabuia.pokevault.screens.pokedex
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import org.koin.compose.viewmodel.koinViewModel
+import com.emabuia.pokevault.data.formatAmount
+import coil3.compose.AsyncImage
+import com.emabuia.pokevault.data.model.CardOptions
+import com.emabuia.pokevault.data.model.Wishlist
+import com.emabuia.pokevault.data.remote.TcgCard
+import com.emabuia.pokevault.ui.premium.PremiumRequiredDialog
+import com.emabuia.pokevault.ui.theme.*
+import com.emabuia.pokevault.ui.wishlist.WishlistEditorDialog
+import com.emabuia.pokevault.ui.wishlist.WishlistPickerDialog
+import com.emabuia.pokevault.util.AppLocale
+import com.emabuia.pokevault.util.ImageUrlUtils
+import com.emabuia.pokevault.ui.components.CardImageSkeleton
+import com.emabuia.pokevault.ui.components.CardVariants
+import com.emabuia.pokevault.ui.components.OwnedVariantBadges
+import com.emabuia.pokevault.ui.components.RaritySymbolIcon
+import com.emabuia.pokevault.ui.components.VariantChoiceChip
+import com.emabuia.pokevault.util.RarityInfo
+import com.emabuia.pokevault.util.RarityUtils
+import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
+
+fun formatReleaseDate(date: String): String {
+    return try {
+        val parts = date.split("/")
+        if (parts.size == 3) "${parts[2]}/${parts[1]}/${parts[0]}" else date
+    } catch (_: Exception) {
+        date
+    }
+}
+
+@Composable
+private fun CardImageFallback(
+    card: TcgCard,
+    compact: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val titleSize = if (compact) 8.sp else 10.sp
+    val detailSize = if (compact) 7.sp else 8.sp
+    val setSeries = card.set?.series?.takeIf { it.isNotBlank() } ?: "-"
+    val setName = card.set?.name?.takeIf { it.isNotBlank() } ?: "-"
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AppColors.surface)
+            .padding(if (compact) 4.dp else 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = card.name,
+                color = AppColors.textPrimary,
+                fontSize = titleSize,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = setSeries,
+                color = AppColors.textMuted,
+                fontSize = detailSize,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = setName,
+                color = AppColors.textMuted,
+                fontSize = detailSize,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+private fun resolveDisplayPrice(card: TcgCard): Double? {
+    return card.cardmarket?.prices?.lowPrice
+        ?: card.cardmarket?.prices?.averageSellPrice
+}
+
+/** EUR (CardMarket) first; TCGPlayer USD fallback for sets without EUR data. */
+private fun resolveDisplayPriceText(card: TcgCard): String? {
+    val eur = resolveDisplayPrice(card)
+    if (eur != null && eur > 0) return formatPriceEur(eur)
+    val usd = card.tcgplayer?.prices?.values
+        ?.firstNotNullOfOrNull { it.market ?: it.low }
+    if (usd != null && usd > 0) return "$ ${formatAmount(usd)}"
+    return null
+}
+
+private fun formatPriceEur(price: Double): String {
+    return "€ ${formatAmount(price)}"
+}
+
+private val ITALIAN_TYPE_MAP = mapOf(
+    "fuoco" to "fire", "acqua" to "water", "erba" to "grass",
+    "elettro" to "lightning", "elettrico" to "lightning", "fulmine" to "lightning",
+    "psico" to "psychic", "psichico" to "psychic",
+    "lotta" to "fighting", "combattimento" to "fighting",
+    "buio" to "darkness", "oscurita" to "darkness", "oscurità" to "darkness",
+    "metallo" to "metal", "acciaio" to "metal",
+    "drago" to "dragon", "folletto" to "fairy", "fata" to "fairy",
+    "incolore" to "colorless", "normale" to "colorless"
+)
+
+private val ITALIAN_CATEGORY_MAP = mapOf(
+    "allenatore" to "trainer", "aiuto" to "supporter", "sostenitore" to "supporter",
+    "stadio" to "stadium", "strumento" to "tool", "oggetto" to "item",
+    "energia" to "energy", "pokemon" to "pokémon"
+)
+
+private val ITALIAN_RARITY_MAP = mapOf(
+    "comune" to "common", "non comune" to "uncommon",
+    "rara" to "rare", "ultra rara" to "ultra rare",
+    "segreta" to "secret", "iper rara" to "hyper rare",
+    "illustrazione" to "illustration", "promo" to "promo",
+    "doppia rara" to "double rare", "olografica" to "holo"
+)
+
+data class ItalianSearchContext(
+    val q: String,
+    val translatedQuery: String,
+    val matchedTypes: Set<String>,
+    val matchedCategories: Set<String>,
+    val matchedRarities: Set<String>
+)
+
+fun buildSearchContext(query: String, translatedQuery: String = ""): ItalianSearchContext {
+    val q = query.lowercase().trim()
+    val types = mutableSetOf<String>()
+    val categories = mutableSetOf<String>()
+    val rarities = mutableSetOf<String>()
+
+    if (q.isNotEmpty()) {
+        ITALIAN_TYPE_MAP.forEach { (it, en) -> if (q.contains(it)) types.add(en.lowercase()) }
+        ITALIAN_CATEGORY_MAP.forEach { (it, en) -> if (q.contains(it)) categories.add(en.lowercase()) }
+        ITALIAN_RARITY_MAP.forEach { (it, en) -> if (q.contains(it)) rarities.add(en.lowercase()) }
+    }
+
+    return ItalianSearchContext(q, translatedQuery, types, categories, rarities)
+}
+
+fun matchesSearchContext(card: TcgCard, ctx: ItalianSearchContext): Boolean {
+    if (ctx.q.isBlank()) return true
+
+    val inName = card.name.contains(ctx.q, ignoreCase = true)
+    val inTranslated = ctx.translatedQuery.isNotBlank() && card.name.contains(ctx.translatedQuery, ignoreCase = true)
+    val inType = card.types?.any { it.lowercase() in ctx.matchedTypes || it.contains(ctx.q, ignoreCase = true) } == true
+    val inSupertype = card.supertype.contains(ctx.q, ignoreCase = true) || card.supertype.lowercase() in ctx.matchedCategories
+    val inRarity = card.rarity?.let { it.contains(ctx.q, ignoreCase = true) || it.lowercase() in ctx.matchedRarities } == true
+    val inNumber = card.number.contains(ctx.q, ignoreCase = true)
+
+    return inName || inTranslated || inType || inSupertype || inRarity || inNumber
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SetDetailScreen(
+    setId: String,
+    setName: String,
+    sourceMacro: String? = null,
+    onBack: () -> Unit,
+    onPremiumRequired: () -> Unit,
+    onIllustratorClick: ((String) -> Unit)? = null,
+    viewModel: SetDetailViewModel = koinViewModel(),
+    wishlistViewModel: WishlistViewModel = koinViewModel()
+) {
+    val state = viewModel.uiState
+    val collectionLanguage = remember(sourceMacro, state.set?.language) {
+        CardOptions.languageLabelForMacro(sourceMacro ?: state.set?.language) ?: CardOptions.LANGUAGES.first()
+    }
+    // Tutte le lingue, sempre, anche nella sezione italiana: la lingua del set
+    // dice che immagine si vede, non che copia si possiede. Una carta inglese
+    // o giapponese si cerca per nome italiano e si aggiunge da qui, e prima
+    // non si poteva -- l'elenco aveva la sola voce "Italiano". Quella resta
+    // preselezionata (collectionLanguage), cosi' il caso normale e' ancora
+    // zero tocchi.
+    val collectionLanguageOptions = CardOptions.LANGUAGES
+    val isItalianSection = remember(sourceMacro, state.set?.language) {
+        sourceMacro?.trim()?.uppercase() == "ITA" || state.set?.language?.trim()?.uppercase() == "ITA"
+    }
+    val haptic = LocalHapticFeedback.current
+    val wishlistState by wishlistViewModel.state.collectAsStateWithLifecycle()
+    // Finche' il server non risponde non si blocca nessuno (PremiumManager su Android).
+    val isPremium = wishlistState.isPremium != false
+    var selectedCard by remember { mutableStateOf<TcgCard?>(null) }
+    var quickAddCard by remember { mutableStateOf<TcgCard?>(null) }
+    var selectedRarityFilter by remember(setId, sourceMacro) { mutableStateOf<String?>(null) }
+    var filtersExpanded by rememberSaveable { mutableStateOf(false) }
+    var pickerCard by remember { mutableStateOf<TcgCard?>(null) }
+    var createDialogCard by remember { mutableStateOf<TcgCard?>(null) }
+    var showWishlistPremiumDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(selectedCard?.id) {
+        val card = selectedCard
+        if (card != null) viewModel.loadPokeWalletPrices(card)
+        else viewModel.clearPokeWalletPrices()
+    }
+
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedCardIds by remember { mutableStateOf(setOf<String>()) }
+    var selectionVariant by remember { mutableStateOf("Normal") }
+    val gridState = rememberLazyGridState()
+
+    // Su Android il tasto Indietro chiudeva la selezione multipla. Su iPhone non
+    // c'e' un tasto Indietro di sistema: si esce dalla X della barra di selezione.
+
+    LaunchedEffect(isSelectionMode) {
+        if (isSelectionMode) quickAddCard = null
+    }
+
+    LaunchedEffect(setId, sourceMacro) {
+        // Ensure a fresh view every time a set is opened: stale local filters can
+        // make users think cards are missing even when repository loaded all cards.
+        selectedRarityFilter = null
+        filtersExpanded = false
+        isSelectionMode = false
+        selectedCardIds = emptySet()
+        viewModel.loadSet(setId, sourceMacro)
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(state.successMessage, state.errorMessage) {
+        val msg = state.successMessage ?: state.errorMessage
+        if (msg != null) { snackbarHostState.showSnackbar(msg); viewModel.clearMessages() }
+    }
+    LaunchedEffect(wishlistState.saveError) {
+        val msg = wishlistState.saveError
+        if (msg != null) {
+            snackbarHostState.showSnackbar(msg)
+            wishlistViewModel.clearError()
+        }
+    }
+
+    val sortedCards = remember(state.cards, state.ownedCardIds, state.searchQuery, state.translatedQuery, state.showOnlyMissing, state.showOnlyOwned, state.selectedType, state.selectedSupertype, selectedRarityFilter) {
+        val searchCtx = buildSearchContext(state.searchQuery, state.translatedQuery)
+        state.cards.filter { card ->
+            val matchesRarity = selectedRarityFilter == null || card.rarity == selectedRarityFilter
+            val matchesSearch = matchesSearchContext(card, searchCtx)
+            val matchesMissing = !state.showOnlyMissing || card.id !in state.ownedCardIds
+            val matchesOwned = !state.showOnlyOwned || card.id in state.ownedCardIds
+            val matchesType = state.selectedType == null || card.types?.contains(state.selectedType) == true
+            val matchesSupertype = state.selectedSupertype == null || card.supertype == state.selectedSupertype
+            
+            matchesRarity && matchesSearch && matchesMissing && matchesOwned && matchesType && matchesSupertype
+        }.sortedBy {
+            it.number.replace(Regex("[^0-9]"), "").toIntOrNull() ?: Int.MAX_VALUE
+        }
+    }
+
+    val hasExplicitCardFilters = remember(
+        state.searchQuery,
+        state.showOnlyMissing,
+        state.showOnlyOwned,
+        state.selectedType,
+        state.selectedSupertype,
+        selectedRarityFilter
+    ) {
+        state.searchQuery.isNotBlank() ||
+            state.showOnlyMissing ||
+            state.showOnlyOwned ||
+            state.selectedType != null ||
+            state.selectedSupertype != null ||
+            selectedRarityFilter != null
+    }
+    val displayedCards = remember(state.cards, sortedCards, hasExplicitCardFilters) {
+        if (sortedCards.isEmpty() && state.cards.isNotEmpty() && !hasExplicitCardFilters) {
+            state.cards.sortedBy {
+                it.number.replace(Regex("[^0-9]"), "").toIntOrNull() ?: Int.MAX_VALUE
+            }
+        } else {
+            sortedCards
+        }
+    }
+
+    // La stessa chiave che la griglia da' alle celle, per risalire dalla cella
+    // toccata alla carta durante la selezione a trascinamento. Calcolata una
+    // volta per lista invece che a ogni evento di drag, che su un set da 250
+    // carte sarebbe una scansione lineare per ogni pixel percorso dal dito.
+    val cardsByGridKey = remember(displayedCards) {
+        displayedCards.associateBy { "${it.id}_${it.number}" as Any }
+    }
+
+    val rarityCounts = remember(state.cards, state.ownedCardIds) {
+        state.cards.groupBy { RarityUtils.getRarityInfo(it.rarity) }
+            .mapValues { (_, cards) -> Pair(cards.count { it.id in state.ownedCardIds }, cards.size) }
+            // toSortedMap e' solo JVM: una mappa che tiene l'ordine fa lo stesso.
+            .entries.sortedBy { it.key.sortOrder }
+            .associate { it.key to it.value }
+    }
+
+    val distinctRarities = remember(state.cards) {
+        state.cards.mapNotNull { it.rarity }
+            .distinct()
+            .sortedBy { RarityUtils.getRarityInfo(it).sortOrder }
+    }
+
+    selectedCard?.let { sheetCard ->
+        CardDetailBottomSheet(
+            card = sheetCard,
+            isOwned = sheetCard.id in state.ownedCardIds,
+            isLoading = state.isAddingCard == sheetCard.id,
+            languageOptions = collectionLanguageOptions,
+            defaultLanguage = collectionLanguage,
+            pokeWalletPrices = state.selectedCardPokeWalletPrices,
+            isLoadingPokeWalletPrices = state.isLoadingPokeWalletPrices,
+            onAddCard = { v, q, c, l ->
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.addCardWithDetails(sheetCard, v, q, c, l)
+            },
+            onRemoveCard = { viewModel.removeCard(sheetCard); selectedCard = null },
+            onDismiss = { selectedCard = null },
+            cardList = sortedCards,
+            onCardChange = { selectedCard = it },
+            // La scheda sa dire quali stampe si hanno gia', come la griglia.
+            ownedVariants = state.ownedVariants[sheetCard.id].orEmpty(),
+            onIllustratorClick = onIllustratorClick
+        )
+    }
+
+    if (pickerCard != null) {
+        val card = pickerCard
+        // canCreateWishlist() legge _isPremium.value, che non e' uno stato Compose:
+        // da solo non farebbe ricomporre all'attivazione del premium. Passando da
+        // isPremium (raccolto qui sopra) la composizione si iscrive davvero.
+        val canCreateWishlist = wishlistState.canCreate
+        WishlistPickerDialog(
+            wishlists = wishlistState.wishlists,
+            selectedWishlistIds = card?.let { wishlistState.listIdsWith(it.id) } ?: emptySet(),
+            canCreateNew = canCreateWishlist,
+            onDismiss = { pickerCard = null },
+            onCreateNewRequested = {
+                if (canCreateWishlist) {
+                    createDialogCard = pickerCard
+                    pickerCard = null
+                } else {
+                    showWishlistPremiumDialog = true
+                }
+            },
+            onConfirmSelection = { selectedIds ->
+                if (card != null) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    wishlistViewModel.setCardLists(card.id, selectedIds) {}
+                }
+                pickerCard = null
+            }
+        )
+    }
+
+    if (createDialogCard != null) {
+        WishlistEditorDialog(
+            onDismiss = { createDialogCard = null },
+            onConfirm = { draft ->
+                val card = createDialogCard
+                if (card != null) {
+                    wishlistViewModel.createWith(draft, card.id) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        createDialogCard = null
+                    }
+                }
+            },
+            isSaving = wishlistState.isSaving
+        )
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = AppColors.background
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            TopAppBar(
+                title = {
+                    Column {
+                        val cleanSetName = state.set?.name?.substringAfterLast(":")?.trim() ?: ""
+                        Text(cleanSetName, fontWeight = FontWeight.Bold, color = AppColors.textPrimary, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (state.set != null) {
+                            Text("${if (AppLocale.isItalian) "Data di uscita" else "Release date"}: ${formatReleaseDate(state.set.releaseDate)}", color = AppColors.textMuted, fontSize = 12.sp)
+                        }
+                    }
+                },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, AppLocale.back, tint = AppColors.textPrimary) } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = AppColors.background)
+            )
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.isLoading && state.set == null) {
+                    // Full loading only when we have no data at all
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        PokeballLoadingAnimation(message = AppLocale.loading)
+                    }
+                } else {
+                LazyVerticalGrid(
+                    state = gridState,
+                    columns = GridCells.Fixed(3),
+                    contentPadding = PaddingValues(
+                        start = 16.dp, end = 16.dp, top = 8.dp,
+                        bottom = if (isSelectionMode) 80.dp else 8.dp
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.pointerInput(cardsByGridKey, state.viewMode) {
+                        if (state.viewMode == "grid") {
+                            // La carta si trova per la chiave dell'elemento, non
+                            // contando gli header: erano quattro e il conto
+                            // tornava, ma bastava aggiungerne uno perche' il
+                            // trascinamento selezionasse la carta sbagliata di
+                            // una riga, senza che niente segnalasse l'errore.
+                            fun cardAt(position: Offset): TcgCard? {
+                                val item = gridState.layoutInfo.visibleItemsInfo.find { info ->
+                                    position.x.toInt() in info.offset.x until (info.offset.x + info.size.width) &&
+                                        position.y.toInt() in info.offset.y until (info.offset.y + info.size.height)
+                                } ?: return null
+                                return cardsByGridKey[item.key]
+                            }
+
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { offset ->
+                                    val card = cardAt(offset)
+                                    if (card != null) {
+                                        // L'aptica la dava il long press della
+                                        // cella, che ora non c'e' piu'.
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        isSelectionMode = true
+                                        selectedCardIds = selectedCardIds + card.id
+                                    }
+                                },
+                                onDrag = { change, _ ->
+                                    if (isSelectionMode) {
+                                        change.consume()
+                                        val card = cardAt(change.position)
+                                        if (card != null && card.id !in selectedCardIds) {
+                                            // Un tocco corto a ogni carta che
+                                            // entra: senza, trascinando non si
+                                            // capisce quante se ne sono prese.
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            selectedCardIds = selectedCardIds + card.id
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                ) {
+                    item(span = { GridItemSpan(3) }) {
+                        SetInfoHeader(
+                            logoUrl = state.set?.images?.logo ?: "",
+                            ownedCount = state.ownedCount,
+                            displayTotal = state.displayTotal,
+                            completionPercent = state.completionPercent,
+                            rarityCounts = rarityCounts
+                        )
+                    }
+
+                    item(span = { GridItemSpan(3) }) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(AppColors.card)
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Search, null, tint = AppColors.textMuted, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        if (state.searchQuery.isEmpty()) Text(if (AppLocale.isItalian) "Cerca in italiano o inglese..." else "Search in Italian or English...", color = AppColors.textMuted, fontSize = 13.sp)
+                                        BasicTextField(
+                                            value = state.searchQuery,
+                                            onValueChange = { viewModel.updateSearchQuery(it) },
+                                            textStyle = androidx.compose.ui.text.TextStyle(color = AppColors.textPrimary, fontSize = 13.sp),
+                                            singleLine = true,
+                                            cursorBrush = SolidColor(AppColors.blue)
+                                        )
+                                    }
+                                    // Translation indicator
+                                    val isTranslating = state.searchQuery.length >= 3 && state.translatedQuery.isEmpty()
+                                        && !state.cards.any { it.name.contains(state.searchQuery, ignoreCase = true) }
+                                    if (isTranslating && state.searchQuery.isNotEmpty()) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(12.dp),
+                                            color = AppColors.blue,
+                                            strokeWidth = 1.5.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    } else if (state.translatedQuery.isNotBlank() && state.searchQuery.isNotEmpty()) {
+                                        Icon(Icons.Default.Translate, null, tint = AppColors.green, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                    }
+                                    if (state.searchQuery.isNotEmpty()) {
+                                        Icon(Icons.Default.Close, null, tint = AppColors.textMuted, modifier = Modifier
+                                            .size(16.dp)
+                                            .clickable { viewModel.updateSearchQuery("") })
+                                    }
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (state.showOnlyMissing) AppColors.red.copy(alpha = 0.2f) else AppColors.card)
+                                    .border(1.dp, if (state.showOnlyMissing) AppColors.red else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .clickable { viewModel.toggleShowOnlyMissing() }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterAltOff,
+                                    contentDescription = null,
+                                    tint = if (state.showOnlyMissing) AppColors.red else AppColors.textMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (state.showOnlyOwned) AppColors.green.copy(alpha = 0.2f) else AppColors.card)
+                                    .border(1.dp, if (state.showOnlyOwned) AppColors.green else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .clickable { viewModel.toggleShowOnlyOwned() }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = if (state.showOnlyOwned) AppColors.green else AppColors.textMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    item(span = { GridItemSpan(3) }) {
+                        val activeFiltersCount = listOf(
+                            state.selectedSupertype,
+                            state.selectedType,
+                            selectedRarityFilter
+                        ).count { it != null }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(AppColors.card)
+                                .padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { filtersExpanded = !filtersExpanded }
+                                    .padding(horizontal = 2.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Tune,
+                                    contentDescription = null,
+                                    tint = if (activeFiltersCount > 0) AppColors.blue else AppColors.textMuted,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = if (AppLocale.isItalian) "Filtri" else "Filters",
+                                    color = AppColors.textPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                if (activeFiltersCount > 0) {
+                                    Text(
+                                        text = "$activeFiltersCount",
+                                        color = AppColors.blue,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .border(1.dp, AppColors.blue.copy(alpha = 0.6f), RoundedCornerShape(999.dp))
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                }
+
+                                Icon(
+                                    imageVector = if (filtersExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    tint = AppColors.textMuted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            AnimatedVisibility(
+                                visible = filtersExpanded,
+                                enter = fadeIn(animationSpec = tween(180)) + expandVertically(animationSpec = tween(220)),
+                                exit = fadeOut(animationSpec = tween(140)) + shrinkVertically(animationSpec = tween(180))
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        state.availableSupertypes.forEach { supertype ->
+                                            item {
+                                                FilterChip(
+                                                    label = AppLocale.translateSupertype(supertype),
+                                                    isSelected = state.selectedSupertype == supertype,
+                                                    onClick = { viewModel.selectSupertype(if (state.selectedSupertype == supertype) null else supertype) }
+                                                )
+                                            }
+                                        }
+
+                                        item {
+                                            VerticalDivider(
+                                                modifier = Modifier
+                                                    .height(20.dp)
+                                                    .padding(horizontal = 4.dp),
+                                                color = AppColors.textMuted.copy(alpha = 0.3f)
+                                            )
+                                        }
+
+                                        state.availableTypes.forEach { type ->
+                                            item {
+                                                FilterChip(
+                                                    label = AppLocale.translateType(type),
+                                                    isSelected = state.selectedType == type,
+                                                    onClick = { viewModel.selectType(if (state.selectedType == type) null else type) }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    ) {
+                                        item {
+                                            RarityFilterChip("${AppLocale.all} (${state.cards.size})", selectedRarityFilter == null) {
+                                                selectedRarityFilter = null
+                                            }
+                                        }
+                                        items(distinctRarities, key = { it }) { rarity ->
+                                            val info = RarityUtils.getRarityInfo(rarity)
+                                            val count = state.cards.count { it.rarity == rarity }
+                                            RarityFilterChip(
+                                                info = info,
+                                                name = AppLocale.translateRarity(rarity),
+                                                count = count,
+                                                isSelected = selectedRarityFilter == rarity
+                                            ) { selectedRarityFilter = rarity }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    item(span = { GridItemSpan(3) }) {
+                        Row(modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(AppColors.card), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            listOf((if (AppLocale.isItalian) "Carte" else "Cards") to "grid", (if (AppLocale.isItalian) "Lista" else "List") to "list").forEach { (label, mode) ->
+                                Text(label, color = if (state.viewMode == mode) AppColors.textPrimary else AppColors.textMuted,
+                                    fontWeight = if (state.viewMode == mode) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontSize = 13.sp, textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { viewModel.setViewMode(mode) }
+                                        .background(if (state.viewMode == mode) AppColors.blue.copy(alpha = 0.3f) else Color.Transparent)
+                                        .padding(vertical = 10.dp))
+                            }
+                        }
+                    }
+
+                    if (state.isLoadingCards) {
+                        // Shimmer placeholder while cards load
+                        items(12) {
+                            ShimmerCardPlaceholder()
+                        }
+                    } else if (displayedCards.isEmpty()) {
+                        item(span = { GridItemSpan(3) }) {
+                            Box(modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                                Text(AppLocale.noResults, color = AppColors.textMuted, fontSize = 14.sp)
+                            }
+                        }
+                    } else {
+                        when (state.viewMode) {
+                            "grid" -> items(displayedCards, key = { "${it.id}_${it.number}" }) { baseCard ->
+                                // Lettura per chiave sulla SnapshotStateMap: quando arriva
+                                // il prezzo di questa carta ricompone solo questa cella.
+                                val card = viewModel.pricedCards[baseCard.id] ?: baseCard
+
+                                LaunchedEffect(baseCard.id) {
+                                    viewModel.ensureCardPrice(baseCard)
+                                }
+
+                                TcgCardCompactItem(
+                                    card = card,
+                                    isOwned = card.id in state.ownedCardIds,
+                                    isWishlisted = wishlistState.listIdsWith(card.id).isNotEmpty(),
+                                    isAdding = state.isAddingCard == card.id,
+                                    isPopupOpen = quickAddCard?.id == card.id,
+                                    isSelected = card.id in selectedCardIds,
+                                    isSelectionMode = isSelectionMode,
+                                    ownedVariants = state.ownedVariants[card.id].orEmpty(),
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            selectedCardIds = if (card.id in selectedCardIds) selectedCardIds - card.id else selectedCardIds + card.id
+                                            if (selectedCardIds.isEmpty()) isSelectionMode = false
+                                        } else {
+                                            selectedCard = card
+                                        }
+                                    },
+                                    // Niente long press qui: lo gestisce il
+                                    // contenitore della griglia insieme al
+                                    // trascinamento, vedi il pointerInput sopra.
+                                    onLongClick = null,
+                                    onQuickAddClick = {
+                                        if (!isSelectionMode) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            val variants = CardOptions.getVariantsForCard(
+                                                card.tcgplayer?.prices?.keys ?: emptySet(), card.rarity, card.set?.releaseDate
+                                            )
+                                            if (variants.size <= 1) {
+                                                viewModel.addCardWithDetails(card, variants.firstOrNull() ?: "Holo", 1, "Near Mint", collectionLanguage)
+                                            } else {
+                                                quickAddCard = if (quickAddCard?.id == card.id) null else card
+                                            }
+                                        }
+                                    },
+                                    onWishlistClick = {
+                                        if (isSelectionMode) return@TcgCardCompactItem
+
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        val wishlists = wishlistState.wishlists
+                                        when {
+                                            wishlists.isEmpty() -> createDialogCard = card
+                                            else -> pickerCard = card
+                                        }
+                                    },
+                                    onVariantSelected = { variant ->
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        viewModel.addCardWithDetails(card, variant, 1, "Near Mint", collectionLanguage)
+                                        quickAddCard = null
+                                    }
+                                )
+                            }
+                            "list" -> items(displayedCards, key = { "${it.id}_${it.number}" }, span = { GridItemSpan(3) }) { baseCard ->
+                                val card = viewModel.pricedCards[baseCard.id] ?: baseCard
+
+                                LaunchedEffect(baseCard.id) {
+                                    viewModel.ensureCardPrice(baseCard)
+                                }
+
+                                TcgCardListRow(
+                                    card = card,
+                                    isOwned = card.id in state.ownedCardIds,
+                                    isWishlisted = wishlistState.listIdsWith(card.id).isNotEmpty(),
+                                    ownedVariants = state.ownedVariants[card.id].orEmpty(),
+                                    onClick = { selectedCard = card },
+                                    onWishlistClick = {
+                                        val wishlists = wishlistState.wishlists
+                                        when {
+                                            wishlists.isEmpty() -> createDialogCard = card
+                                            else -> pickerCard = card
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    item(span = { GridItemSpan(3) }) { Spacer(modifier = Modifier.height(40.dp)) }
+                }
+
+                // Selection bottom bar
+                if (isSelectionMode && selectedCardIds.isNotEmpty()) {
+                    // Le stampe che hanno DAVVERO le carte selezionate, non le
+                    // tre di default. La barra offriva sempre Normale, Reverse
+                    // e Holo: su un set di sole Holo -- il 30 Anniversario, per
+                    // dirne uno -- due scelte su tre non esistevano, e
+                    // sceglierle non dava errore, semplicemente
+                    // addMultipleCards ripiegava in silenzio sull'unica
+                    // possibile. L'unione e non l'intersezione: in una
+                    // selezione mista ogni carta prende la piu' vicina, ed e'
+                    // gia' quello che fa il ViewModel.
+                    val selectionVariantOptions = remember(selectedCardIds, displayedCards) {
+                        val selected = displayedCards.filter { it.id in selectedCardIds }
+                        val union = selected.flatMapTo(mutableSetOf()) { card ->
+                            CardOptions.getVariantsForCard(
+                                card.tcgplayer?.prices?.keys ?: emptySet(),
+                                card.rarity,
+                                card.set?.releaseDate
+                            )
+                        }
+                        CardVariants.sorted(union).ifEmpty { CardOptions.DEFAULT_VARIANTS }
+                    }
+                    // La stampa scelta puo' non esistere fra quelle offerte:
+                    // si parte da "Normal", e cambiando selezione le stampe
+                    // disponibili cambiano sotto. Si ricava qui, subito, senza
+                    // riscrivere `selectionVariant` da un LaunchedEffect --
+                    // quello correggeva lo stato un frame dopo, e in quel
+                    // frame la barra non aveva nessuna pastiglia accesa e
+                    // "aggiungi" leggeva ancora la stampa vecchia.
+                    val effectiveSelectionVariant = selectionVariant
+                        .takeIf { it in selectionVariantOptions }
+                        ?: selectionVariantOptions.first()
+
+                    SelectionBottomBar(
+                        selectedCount = selectedCardIds.size,
+                        selectedVariant = effectiveSelectionVariant,
+                        variants = selectionVariantOptions,
+                        onVariantChange = { selectionVariant = it },
+                        onAddAll = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            val cards = displayedCards.filter { it.id in selectedCardIds }
+                            viewModel.addMultipleCards(cards, effectiveSelectionVariant)
+                            isSelectionMode = false
+                            selectedCardIds = emptySet()
+                        },
+                        onCancel = {
+                            isSelectionMode = false
+                            selectedCardIds = emptySet()
+                        },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
+                } // close else (have data)
+            } // close outer Box
+        }
+    }
+
+    if (showWishlistPremiumDialog) {
+        PremiumRequiredDialog(
+            title = AppLocale.premiumWishlistLimitTitle,
+            message = AppLocale.premiumWishlistLimitMessage,
+            onDismiss = { showWishlistPremiumDialog = false },
+            onUpgrade = {
+                showWishlistPremiumDialog = false
+                onPremiumRequired()
+            }
+        )
+    }
+}
+
+@Composable
+fun FilterChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = if (isSelected) AppColors.textPrimary else AppColors.textMuted,
+        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+        fontSize = 12.sp,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isSelected) AppColors.blue.copy(alpha = 0.5f) else AppColors.card)
+            .border(1.dp, if (isSelected) AppColors.blue else Color.Transparent, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    )
+}
+
+@Composable
+fun ShimmerCardPlaceholder(modifier: Modifier = Modifier) {
+    val shimmer = rememberInfiniteTransition(label = "shimmer")
+    val alpha by shimmer.animateFloat(
+        initialValue = 0.15f,
+        targetValue = 0.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shimmerAlpha"
+    )
+    // Lo stesso fondo delle carte che stanno per arrivare, con un velo che
+    // pulsa sopra: prima era un rettangolo bianco lampeggiante, che non
+    // somigliava a niente di quello che poi compariva al suo posto.
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(0.72f)
+            .clip(RoundedCornerShape(10.dp))
+    ) {
+        CardImageSkeleton()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White.copy(alpha = alpha * 0.5f))
+        )
+    }
+}
+
+@Composable
+fun SelectionBottomBar(
+    selectedCount: Int,
+    selectedVariant: String,
+    /**
+     * Le stampe fra cui scegliere. Le decide il chiamante guardando le carte
+     * selezionate: qui c'era [CardOptions.DEFAULT_VARIANTS] fisso, cioe' tre
+     * scelte sempre uguali a prescindere dalle carte davanti.
+     */
+    variants: List<String>,
+    onVariantChange: (String) -> Unit,
+    onAddAll: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.Transparent, AppColors.surface.copy(alpha = 0.95f), AppColors.surface)
+                )
+            )
+            .padding(top = 16.dp, bottom = 12.dp, start = 16.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Cancel
+        IconButton(onClick = onCancel, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Default.Close, contentDescription = null, tint = AppColors.textMuted)
+        }
+
+        // Variant pills
+        //
+        // Scorre di lato: le stampe ora le decidono le carte selezionate e
+        // possono essere piu' di tre, con nomi lunghi ("1ª Ed. Holo"). Prima
+        // erano tre corte e fisse, e la riga non poteva traboccare.
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            variants.forEach { variant ->
+                val isActive = variant == selectedVariant
+                Text(
+                    // CardVariants.label, come le pastiglie della scheda
+                    // carta: la stessa stampa si chiama allo stesso modo in
+                    // tutta l'app, e in italiano. "Norm" non era ne' l'uno
+                    // ne' l'altro.
+                    text = CardVariants.label(variant),
+                    color = if (isActive) AppColors.textPrimary else AppColors.textMuted,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isActive) AppColors.blue.copy(alpha = 0.7f) else AppColors.card)
+                        .border(
+                            1.dp,
+                            if (isActive) AppColors.blue else Color.Transparent,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { onVariantChange(variant) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            }
+        }
+
+        // Add all button
+        Button(
+            onClick = onAddAll,
+            colors = ButtonDefaults.buttonColors(containerColor = AppColors.green),
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+            modifier = Modifier.height(36.dp)
+        ) {
+            Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text("$selectedCount", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+fun SetInfoHeader(
+    logoUrl: String,
+    ownedCount: Int,
+    displayTotal: Int,
+    completionPercent: Int,
+    rarityCounts: Map<RarityInfo, Pair<Int, Int>>
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.verticalGradient(listOf(AppColors.card, AppColors.surface)))
+            .padding(16.dp)
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (logoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = logoUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(55.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, AppColors.green.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        "${completionPercent}%",
+                        color = AppColors.green,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "$ownedCount/$displayTotal",
+                    color = AppColors.textPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(Color(0xFF1A1A30))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(completionPercent / 100f)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF3B82F6),
+                                Color(0xFF8B5CF6),
+                                Color(0xFFEC4899)
+                            )
+                        )
+                    )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Una riga sola, sempre: le voci si spartiscono la larghezza con
+        // `weight(1f)` invece di andare a capo. Un set moderno ne ha fino a
+        // dieci, quindi simbolo e testo si stringono al crescere del numero --
+        // tre stelle da 14dp sarebbero 45dp a voce e manderebbero l'ultima
+        // sotto, che e' esattamente il difetto di prima (Iper Rara in Buio
+        // Pesto, Futuristica nel 30°).
+        val voci = rarityCounts.count { it.value.second > 0 }
+        val simbolo = when {
+            voci >= 9 -> 10.dp
+            voci >= 7 -> 12.dp
+            else -> 14.dp
+        }
+        val corpo = if (voci >= 9) 7 else 8
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            rarityCounts.forEach { (info, counts) ->
+                if (counts.second > 0) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        RaritySymbolIcon(info, size = simbolo)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "${counts.first}/${counts.second}",
+                            color = if (counts.first == counts.second) AppColors.green else AppColors.textPrimary.copy(
+                                alpha = 0.8f
+                            ),
+                            fontSize = (corpo + 2).sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = info.shortLabel,
+                            color = AppColors.textMuted,
+                            fontSize = corpo.sp,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+@Composable
+fun RarityFilterChip(label: String, isSelected: Boolean, color: Color = AppColors.blue, onClick: () -> Unit) {
+    Text(label, maxLines = 1, color = if (isSelected) AppColors.textPrimary else AppColors.textMuted,
+        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, fontSize = 12.sp,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isSelected) color.copy(alpha = 0.5f) else AppColors.card)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp))
+}
+
+/**
+ * Stesso chip, ma col segno di rarita' disegnato accanto al nome invece che
+ * concatenato nella stringa: un simbolo su Canvas non si puo' infilare dentro
+ * un `Text`.
+ *
+ * Il nome arriva da fuori e non da `info.label` di proposito: il filtro lavora
+ * sulla stringa esatta del catalogo, e `info.label` raggruppa -- "Holo Rare V"
+ * e "Holo Rare VMAX" sono tutte e due "Doppia Rara", per cui i set SWSH si
+ * ritroverebbero due o tre chip scritti uguale che filtrano cose diverse.
+ */
+@Composable
+fun RarityFilterChip(
+    info: RarityInfo,
+    name: String,
+    count: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (isSelected) info.color.copy(alpha = 0.5f) else AppColors.card)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        RaritySymbolIcon(info, size = 12.dp)
+        Text(
+            text = "$name ($count)",
+            maxLines = 1,
+            color = if (isSelected) AppColors.textPrimary else AppColors.textMuted,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun TcgCardCompactItem(
+    card: TcgCard,
+    isOwned: Boolean,
+    isWishlisted: Boolean,
+    isAdding: Boolean = false,
+    isPopupOpen: Boolean = false,
+    isSelected: Boolean = false,
+    isSelectionMode: Boolean = false,
+    ownedVariants: Set<String> = emptySet(),
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onQuickAddClick: () -> Unit,
+    onWishlistClick: () -> Unit,
+    onVariantSelected: (String) -> Unit = {}
+) {
+    val variantOptions = remember(card.tcgplayer?.prices?.keys, card.rarity, card.set?.releaseDate) {
+        CardOptions.getVariantsForCard(card.tcgplayer?.prices?.keys ?: emptySet(), card.rarity, card.set?.releaseDate)
+    }
+    var currentImageUrl by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(card.images.small.ifBlank { card.images.large })
+    }
+    var isImageAvailable by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(currentImageUrl.isNotBlank())
+    }
+    var imageLoadFailed by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(currentImageUrl.isBlank())
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(0.72f)
+            .clip(RoundedCornerShape(10.dp))
+            .then(
+                when {
+                    isAdding -> Modifier.border(2.dp, AppColors.blue.copy(alpha = 0.95f), RoundedCornerShape(10.dp))
+                    isSelected -> Modifier.border(2.dp, AppColors.blue, RoundedCornerShape(10.dp))
+                    isOwned -> Modifier.border(2.dp, AppColors.green.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
+                    else -> Modifier
+                }
+            )
+            // `combinedClickable` solo dove serve davvero il long press (la
+            // vista lista). Nella griglia il long press lo gestisce il
+            // contenitore insieme al trascinamento: averlo anche qui faceva
+            // due gestori per lo stesso gesto, la cella lo consumava per
+            // prima e la selezione a trascinamento partiva a intermittenza.
+            .then(
+                if (onLongClick != null) {
+                    Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+                } else {
+                    Modifier.clickable(onClick = onClick)
+                }
+            )
+        ) {
+            if (!imageLoadFailed && currentImageUrl.isNotBlank()) {
+                // Il fondo sta sotto, non dentro l'immagine: cosi' resta
+                // visibile mentre l'immagine arriva e la dissolvenza lo copre.
+                // Mettendolo come `.background()` dell'AsyncImage si vedeva
+                // solo un rettangolo pieno.
+                CardImageSkeleton(number = card.number)
+
+                // Vedi la nota in TcgCardListRow: SubcomposeAsyncImage costava
+                // tre subcomposition per cella, qui moltiplicate per l'intera
+                // griglia del set.
+                AsyncImage(
+                    model = remember(currentImageUrl) { ImageUrlUtils.safeImageUrl(currentImageUrl) },
+                    contentDescription = card.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = {
+                        isImageAvailable = true
+                        imageLoadFailed = false
+                    },
+                    onError = {
+                        val canTryLarge =
+                            currentImageUrl != card.images.large && card.images.large.isNotBlank()
+                        if (canTryLarge) {
+                            currentImageUrl = card.images.large
+                        } else {
+                            imageLoadFailed = true
+                            isImageAvailable = false
+                        }
+                    }
+                )
+            } else {
+                isImageAvailable = false
+                CardImageFallback(card = card, compact = false)
+            }
+
+            if (!isImageAvailable && !isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.18f))
+                )
+            } else if (!isOwned && !isSelected && !isAdding) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f)))
+            }
+
+            if (isSelected) Box(modifier = Modifier
+                .fillMaxSize()
+                .background(AppColors.blue.copy(alpha = 0.15f)))
+
+            if (isAdding && !isSelected) Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(AppColors.blue.copy(alpha = 0.18f))
+            )
+
+            // Selection checkbox (top-left)
+            if (isSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) AppColors.blue else Color.Black.copy(alpha = 0.5f))
+                        .border(1.5.dp, if (isSelected) AppColors.blue else Color.White.copy(alpha = 0.4f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
+                    }
+                }
+            }
+
+            // In alto a destra: quali stampe si hanno, non solo che si ha la
+            // carta. Le collezioni vecchie possono non avere la variante
+            // salvata, e li' resta la spunta di prima.
+            if (isOwned && !isSelectionMode) {
+                if (ownedVariants.isNotEmpty()) {
+                    OwnedVariantBadges(
+                        variants = ownedVariants,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                    )
+                } else {
+                    Box(modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(AppColors.green), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(12.dp))
+                    }
+                }
+            }
+
+            // Bottom area - Name only (price moved outside)
+            Column(modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
+                .padding(horizontal = 6.dp, vertical = 5.dp)
+            ) {
+                // La scelta della stampa sta *sopra* la riga del nome, non al
+                // suo posto: cosi' il tasto aggiungi e il cuore restano
+                // raggiungibili anche mentre si sceglie.
+                if (isPopupOpen) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        variantOptions.forEach { variant ->
+                            VariantChoiceChip(
+                                variant = variant,
+                                alreadyOwned = variant in ownedVariants,
+                                modifier = Modifier.weight(1f)
+                            ) { onVariantSelected(variant) }
+                        }
+                    }
+                }
+
+                    // Card name + price + actions inside card
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        if (isSelectionMode) {
+                            Text(
+                                card.name,
+                                color = AppColors.textPrimary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        } else {
+                            val heartColor by animateColorAsState(
+                                targetValue = if (isWishlisted) AppColors.red else Color.White.copy(alpha = 0.92f),
+                                label = "wishlistHeartColor"
+                            )
+                            val heartScale by animateFloatAsState(
+                                targetValue = if (isWishlisted) 1.08f else 1f,
+                                animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                                label = "wishlistHeartScale"
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Text(
+                                    text = card.name,
+                                    color = AppColors.textPrimary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Column(
+                                    horizontalAlignment = Alignment.End,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    val priceText = resolveDisplayPriceText(card)
+                                    if (priceText != null) {
+                                        Text(
+                                            text = priceText,
+                                            color = AppColors.green,
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(999.dp))
+                                                .border(1.dp, AppColors.green.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
+                                                .background(AppColors.card)
+                                                .padding(horizontal = 7.dp, vertical = 1.dp)
+                                        )
+                                    } else {
+                                        Text(
+                                            text = AppLocale.priceUnavailable,
+                                            color = AppColors.textMuted,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(AppColors.surface.copy(alpha = 0.78f))
+                                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                                .clickable { onWishlistClick() },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isWishlisted) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                contentDescription = AppLocale.wishlistTitle,
+                                                tint = heartColor,
+                                                modifier = Modifier.size((13.dp * heartScale))
+                                            )
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .size(22.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    when {
+                                                        isAdding -> AppColors.blue.copy(alpha = 0.9f)
+                                                        isOwned -> Color.Transparent
+                                                        else -> AppColors.surface.copy(alpha = 0.8f)
+                                                    }
+                                                )
+                                                .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                                                .clickable { onQuickAddClick() },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (isAdding) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(12.dp),
+                                                    color = Color.White,
+                                                    strokeWidth = 1.5.dp
+                                                )
+                                            } else {
+                                                // Con la scelta della stampa
+                                                // aperta lo stesso tasto la
+                                                // chiude, e l'icona lo dice.
+                                                Icon(
+                                                    if (isPopupOpen) Icons.Default.Close else Icons.Default.Add,
+                                                    null,
+                                                    tint = when {
+                                                        isPopupOpen -> Color.White
+                                                        isOwned -> AppColors.textMuted.copy(alpha = 0.5f)
+                                                        else -> Color.White
+                                                    },
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+        }
+    }
+}
+
+@Composable
+fun TcgCardListRow(
+    card: TcgCard,
+    isOwned: Boolean,
+    isWishlisted: Boolean,
+    ownedVariants: Set<String> = emptySet(),
+    onClick: () -> Unit,
+    onWishlistClick: () -> Unit
+) {
+    val rarityInfo = RarityUtils.getRarityInfo(card.rarity)
+    var currentImageUrl by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(card.images.small.ifBlank { card.images.large })
+    }
+    var isImageAvailable by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(currentImageUrl.isNotBlank())
+    }
+    var imageLoadFailed by remember(card.id, card.images.small, card.images.large) {
+        mutableStateOf(currentImageUrl.isBlank())
+    }
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(12.dp))
+        .background(if (isOwned) AppColors.card else AppColors.card.copy(alpha = 0.5f))
+        .clickable(onClick = onClick)
+        .padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(modifier = Modifier
+            .width(45.dp)
+            .height(63.dp)
+            .clip(RoundedCornerShape(6.dp))) {
+            if (!imageLoadFailed && currentImageUrl.isNotBlank()) {
+                CardImageSkeleton(number = card.number)
+
+                // AsyncImage, non SubcomposeAsyncImage: i suoi slot loading/error/
+                // success sono tre subcomposition per cella, e in una griglia di
+                // ~120 carte era il costo principale del jank in scroll. Il fondo
+                // qui sopra fa da placeholder, e il fallback d'errore e' gia' il
+                // ramo else qui sotto, che scatta quando imageLoadFailed diventa
+                // true.
+                AsyncImage(
+                    model = remember(currentImageUrl) { ImageUrlUtils.safeImageUrl(currentImageUrl) },
+                    contentDescription = card.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                    onSuccess = {
+                        isImageAvailable = true
+                        imageLoadFailed = false
+                    },
+                    onError = {
+                        val canTryLarge =
+                            currentImageUrl != card.images.large && card.images.large.isNotBlank()
+                        if (canTryLarge) {
+                            currentImageUrl = card.images.large
+                        } else {
+                            imageLoadFailed = true
+                            isImageAvailable = false
+                        }
+                    }
+                )
+            } else {
+                isImageAvailable = false
+                CardImageFallback(card = card, compact = true)
+            }
+            if (!isImageAvailable) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.12f)))
+            } else if (!isOwned) {
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f)))
+            }
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RaritySymbolIcon(rarityInfo, size = 12.dp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(card.name, color = if (isOwned) AppColors.textPrimary else AppColors.textMuted, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            // info.label, non translateRarity: la seconda su una rarita' che
+            // non c'e' lascia la riga a meta' ("#4 · "), la prima dice
+            // "Sconosciuta".
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("#${card.number} · ${rarityInfo.label}", color = AppColors.textMuted, fontSize = 11.sp)
+                // Le stampe possedute anche qui: le due viste della stessa
+                // schermata devono dire le stesse cose.
+                if (isOwned) OwnedVariantBadges(variants = ownedVariants, size = 14, fontSize = 8)
+            }
+        }
+        val priceText = resolveDisplayPriceText(card)
+        if (priceText != null) {
+            Text(
+                text = priceText,
+                color = AppColors.green,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .border(1.dp, AppColors.green.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
+                    .background(AppColors.card)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        } else {
+            Text(
+                text = AppLocale.priceUnavailable,
+                color = AppColors.textMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Icon(
+            imageVector = if (isWishlisted) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            contentDescription = AppLocale.wishlistTitle,
+            tint = if (isWishlisted) AppColors.red else AppColors.textMuted,
+            modifier = Modifier
+                .size(20.dp)
+                .clickable { onWishlistClick() }
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Box(modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .background(if (isOwned) AppColors.green else Color.Transparent)
+            .then(
+                if (!isOwned) Modifier.border(
+                    1.5.dp,
+                    AppColors.textMuted.copy(alpha = 0.3f),
+                    CircleShape
+                ) else Modifier
+            ), contentAlignment = Alignment.Center) {
+            if (isOwned) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp))
+        }
+    }
+}

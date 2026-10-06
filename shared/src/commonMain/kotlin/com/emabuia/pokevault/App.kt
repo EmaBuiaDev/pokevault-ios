@@ -32,7 +32,6 @@ import com.emabuia.pokevault.screens.album.CreateAlbumScreen
 import com.emabuia.pokevault.screens.album.CreateGoalAlbumScreen
 import com.emabuia.pokevault.screens.album.GoalAlbumDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
-import com.emabuia.pokevault.screens.cards.ExpansionCardsScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.collection.CollectionCardDetailScreen
 import com.emabuia.pokevault.screens.competitive.AddMatchScreen
@@ -44,7 +43,9 @@ import com.emabuia.pokevault.screens.competitive.MatchLogScreen
 import com.emabuia.pokevault.screens.competitive.TournamentDetailScreen
 import com.emabuia.pokevault.util.PokemonSpriteResolver
 import androidx.compose.runtime.LaunchedEffect
-import com.emabuia.pokevault.screens.expansions.ExpansionsScreen
+import com.emabuia.pokevault.screens.pokedex.SetsListScreen
+import com.emabuia.pokevault.screens.pokedex.SetDetailScreen
+import com.emabuia.pokevault.data.PokedexCatalog
 import com.emabuia.pokevault.screens.graded.GradedCardsScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorDetailScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorListScreen
@@ -90,7 +91,7 @@ object PokedexDestination
 object StatsDestination
 
 @Serializable
-data class ExpansionCardsDestination(val expansionId: String, val expansionName: String)
+data class SetDetailDestination(val setId: String, val setName: String, val sourceMacro: String? = null)
 
 @Serializable
 data class CardDetailDestination(val expansionId: String, val cardId: String)
@@ -205,7 +206,7 @@ fun App() {
                 backStackEntry?.destination?.hierarchy?.any { it.hasRoute(tab.destination::class) } == true
             }
             val openExpansion = { expansion: Expansion ->
-                navController.navigate(ExpansionCardsDestination(expansion.id, expansion.name))
+                navController.navigate(SetDetailDestination(PokedexCatalog.italianSetId(expansion.id), expansion.name, "ITA"))
             }
 
             // Il numero sul tasto TradeRadar: si rilegge quando l'app torna in primo
@@ -255,22 +256,27 @@ fun App() {
                             }
                         }
                         composable<PokedexDestination> {
-                            ExpansionsScreen(
-                                navigateToCards = openExpansion,
-                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
+                            SetsListScreen(
+                                onBack = { navController.popBackStack() },
+                                // Come su Android: il nome provvisorio e' l'id, il titolo vero arriva col set.
+                                onSetClick = { setId, macro -> navController.navigate(SetDetailDestination(setId, setId, macro)) },
+                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
+                            )
+                        }
+                        composable<SetDetailDestination> { entry ->
+                            val destination = entry.toRoute<SetDetailDestination>()
+                            SetDetailScreen(
+                                setId = destination.setId,
+                                setName = destination.setName,
+                                sourceMacro = destination.sourceMacro,
+                                onBack = { navController.popBackStack() },
+                                // Su iOS il Premium arriva con StoreKit (dopo l'account Apple a pagamento).
+                                onPremiumRequired = {},
+                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
                             )
                         }
                         composable<StatsDestination> {
                             RequireLogin { _, _ -> StatsScreen() }
-                        }
-                        composable<ExpansionCardsDestination> { entry ->
-                            val destination = entry.toRoute<ExpansionCardsDestination>()
-                            ExpansionCardsScreen(
-                                expansionId = destination.expansionId,
-                                expansionName = destination.expansionName,
-                                navigateBack = { navController.popBackStack() },
-                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
-                            )
                         }
                         composable<CardDetailDestination> { entry ->
                             val destination = entry.toRoute<CardDetailDestination>()
