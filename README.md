@@ -67,8 +67,8 @@ Con il repo pubblico i minuti macOS sono gratis. Con il repo privato ne restano 
 - [x] Deck Lab 3a: elenco con i filtri, dettaglio, elimina (con le carte solo-deck rimaste orfane), duplica, esporta la decklist (copia e condividi)
 - [x] Deck Lab 3b: editor, crea e modifica (carte della collezione e cercate nel catalogo, in collezione o solo nel deck di prova), con limiti di 4 copie e 60 carte, annulla, copertine
 - [x] Deck Lab 3c-1: import da testo (PTCG Live, Limitless, CSV), con le carte possedute subito e le mancanti dal catalogo italiano, in collezione o solo nel deck; i test Android dell'import girano anche qui
-- [ ] Deck Lab 3c-2: schede Meta Deck e Win Tournament
-- [ ] Provare su Appetize il Match log, l'Hand Simulator e i mazzi del Deck Lab
+- [x] Deck Lab 3c-2: schede Meta Deck e Win Tournament da Limitless (stessa cache, stesso limite di 50 richieste ogni 5 minuti, 10 decklist gratis senza Premium), import nel Deck Lab
+- [ ] Provare su Appetize Competitive: Match log, Hand Simulator, Deck Lab (mazzi, editor, import, Meta Deck)
 
 ### Fase 4: TestFlight (qui si pagano i 99 $/anno)
 - [ ] Iscrizione all'Apple Developer Program, poi la richiesta per lo Small Business Program (commissione al 15%)

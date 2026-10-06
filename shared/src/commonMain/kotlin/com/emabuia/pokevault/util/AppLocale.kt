@@ -807,4 +807,51 @@ object AppLocale {
 
     // Deck Lab, import: gli stessi testi dell'app Android.
     fun deckSourceQuestion(missing: Int): String = "$missing carte del deck non sono nella tua collezione."
+
+    // Meta Deck e Win Tournament: gli stessi testi dell'app Android.
+    val connectionError: String get() = "Errore di connessione"
+    fun deckCountLabel(count: Int): String = "$count mazzi"
+    val deckLabMetaDeck: String get() = "Meta Deck"
+    val deckLabMetaDeckSubtitle: String get() = "Archetipi e classifica del meta da LimitlessTCG"
+    val deckLabMyDecks: String get() = "I Miei Deck"
+    val deckLabWinTournament: String get() = "Win Tournament"
+    val deckLabWinTournamentSubtitle: String get() = "Deck vincitori dai tornei competitivi"
+    val importInDeckLab: String get() = "Importa in DeckLab"
+    val metaArchetypeInfoBody: String get() = "Aggregato dagli ultimi 15 tornei competitivi su LimitlessTCG (top 32 di ogni torneo). Gli archetipi sono ordinati per meta share: la % di copie del deck nel pool competitivo."
+    val metaInfoAction: String get() = "Da dove arrivano i dati"
+    fun metaLastUpdatedHours(hours: Long): String = "Aggiornato ${hours}h fa"
+    fun metaLastUpdatedMinutes(minutes: Long): String = "Aggiornato $minutes min fa"
+    val metaLastUpdatedNow: String get() = "Aggiornato ora"
+    val metaNoArchetypes: String get() = "Nessun archetipo trovato"
+    val metaRateLimitedBody: String get() = "LimitlessTCG accetta 50 richieste ogni 5 minuti e per ora sono finite. Non c'e' niente da sistemare: basta aspettare."
+    val metaRateLimitedStaleBody: String get() = "Stai vedendo gli ultimi dati salvati. Si aggiorneranno da soli."
+    val metaRateLimitedTitle: String get() = "LimitlessTCG in pausa"
+    fun metaRateLimitedWait(seconds: Long): String {
+        val minutes = seconds / 60
+        val rest = seconds % 60
+        return when {
+            minutes <= 0L -> if (isItalian) "Riprova fra ${seconds}s" else "Retry in ${seconds}s"
+            rest == 0L -> if (isItalian) "Riprova fra ${minutes} min" else "Retry in ${minutes} min"
+            else -> if (isItalian) "Riprova fra ${minutes} min ${rest}s" else "Retry in ${minutes} min ${rest}s"
+        }
+    }
+    fun metaRefreshCooldown(seconds: Long): String = "Riprova tra ${seconds}s"
+    val metaShare: String get() = "Meta Share"
+    val noDecklistAvailable: String get() = "Nessuna decklist disponibile"
+    val premiumMetaDeckLimitMessage: String get() = "Hai utilizzato tutte le 10 visualizzazioni gratuite dei Meta Deck.\n\nPassa a Premium per accesso illimitato!"
+    val premiumMetaDeckLimitTitle: String get() = "Visualizzazioni Meta Deck esaurite"
+    val refresh: String get() = "Aggiorna"
+    val tryChangeFormat: String get() = "Prova a cambiare formato o riprova piu tardi."
+    val unknownDeck: String get() = "Deck sconosciuto"
+    val viewDeck: String get() = "Vedi deck"
+    val winTournamentInfoBody: String get() = "I top 3 piazzati (con decklist) degli ultimi tornei su LimitlessTCG, dal piu' recente. Sono esclusi gli eventi sotto gli 8 giocatori, che non sono risultati competitivi. Tocca un piazzamento per vedere la decklist completa e importarla."
+    val winTournamentKindAll: String get() = "Tutti"
+    val winTournamentKindLive: String get() = "Dal vivo"
+    val winTournamentKindOnline: String get() = "Online"
+    val winTournamentLoading: String get() = "Caricamento tornei..."
+    val winTournamentNoLiveResults: String get() = "Nessun torneo dal vivo di recente"
+    val winTournamentNoLiveResultsBody: String get() = "Nelle ultime settimane su LimitlessTCG non risultano eventi in presenza per questo formato. Prova con Tutti o cambia formato."
+    val winTournamentNoOnlineResults: String get() = "Nessun torneo online di recente"
+    val winTournamentNoResults: String get() = "Nessun torneo trovato"
+    fun winTournamentPlayers(count: Int): String = "$count giocatori"
 }

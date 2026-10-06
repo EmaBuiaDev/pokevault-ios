@@ -1,5 +1,8 @@
 package com.emabuia.pokevault.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class MetaDeck(
     val id: String,
     val archetype: String?,
@@ -13,6 +16,7 @@ data class MetaDeck(
     val cards: List<MetaDeckCard>
 )
 
+@Serializable
 data class MetaDeckCard(
     val name: String,
     val set: String?,
@@ -25,6 +29,7 @@ data class MetaDeckCard(
  * Rappresenta i risultati di un torneo competitivo con i top 3 piazzati.
  * Usato nella sezione "Win Tournament" per mostrare i vincitori per torneo.
  */
+@Serializable
 data class TournamentResult(
     val tournamentId: String,
     val tournamentName: String,
@@ -59,6 +64,7 @@ enum class TournamentKind {
  * Rappresenta un archetipo del meta competitivo,
  * aggregato da più tornei (come limitlesstcg.com/decks).
  */
+@Serializable
 data class MetaArchetype(
     val name: String,               // Nome archetipo (es. "Charizard ex")
     val count: Int,                 // Quanti deck usano questo archetipo

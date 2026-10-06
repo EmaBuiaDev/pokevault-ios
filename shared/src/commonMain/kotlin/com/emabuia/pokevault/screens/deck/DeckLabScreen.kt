@@ -34,6 +34,11 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.ui.graphics.Color
+import com.emabuia.pokevault.screens.competitive.MetaDeckViewModel
 import kotlinx.coroutines.launch
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -69,9 +74,8 @@ import org.koin.compose.viewmodel.koinViewModel
 /**
  * Il Deck Lab: ui/deck/DeckLabScreen.kt di Android, la scheda "I Miei Deck".
  *
- * Su iOS per ora: elenco con i filtri, dettaglio, elimina, duplica,
- * esporta, l'editor e l'import da testo. Mancano le schede Meta Deck e Win
- * Tournament: le parti qui sotto sono quelle di Android.
+ * Tutto quello che c'e' su Android: i tuoi deck (elenco, dettaglio, editor,
+ * import, esporta) e le schede Meta Deck e Win Tournament da Limitless.
  *
  * [onCardClick] riceve l'id del catalogo ("ita:..."), non quello del
  * documento: su iOS il dettaglio di una carta si apre da li'.
@@ -83,6 +87,7 @@ fun DeckLabScreen(
     onCardClick: (String) -> Unit = {},
     onNavigateToPremium: () -> Unit = {},
     viewModel: DeckLabViewModel = koinViewModel(),
+    metaDeckViewModel: MetaDeckViewModel = koinViewModel(),
 ) {
     // Saveable: tornando dal dettaglio di una carta il filtro resta quello scelto.
     var deckListFilter by rememberSaveable { mutableStateOf(DeckListFilter.ALL) }
@@ -91,6 +96,9 @@ fun DeckLabScreen(
     var showDiscardDeckDialog by remember { mutableStateOf(false) }
     var showNewDeckSourceDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
+    var showPremiumMetaDeckDialog by remember { mutableStateOf(false) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    val deckLabTabs = listOf(AppLocale.deckLabMyDecks, AppLocale.deckLabMetaDeck, AppLocale.deckLabWinTournament)
     val deckScope = rememberCoroutineScope()
 
     /** C'e' del lavoro che uno swipe distruggerebbe. */
@@ -127,6 +135,29 @@ fun DeckLabScreen(
     var selectedDeckId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedDeck: Deck? = viewModel.decks.firstOrNull { it.id == selectedDeckId }
 
+    /** Un deck dei meta importato: gli stessi controlli di Android, poi il riepilogo. */
+    fun importMetaDeck(deck: com.emabuia.pokevault.data.model.MetaDeck) {
+        if (viewModel.canCreateDeck()) {
+            viewModel.importFromMetaDeck(deck)
+            metaDeckViewModel.selectDeck(null)
+            // Il risultato e il passo dopo sono sempre di ImportResultDialog.
+        } else {
+            metaDeckViewModel.selectDeck(null)
+            showPremiumDeckDialog = true
+        }
+    }
+
+    // Il dettaglio di un deck dei meta a tutto schermo, dalle due schede.
+    val metaDeckOpen = metaDeckViewModel.selectedDeck.takeIf { selectedTabIndex == 1 || selectedTabIndex == 2 }
+    if (metaDeckOpen != null) {
+        MetaDeckDetailView(
+            deck = metaDeckOpen,
+            onBack = { metaDeckViewModel.selectDeck(null) },
+            onImport = { importMetaDeck(metaDeckOpen) }
+        )
+        return
+    }
+
     Scaffold(
         containerColor = AppColors.background,
         topBar = {
@@ -156,9 +187,39 @@ fun DeckLabScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = AppLocale.deckLabMyDecksSubtitle,
+                                text = when (selectedTabIndex) {
+                                    0 -> AppLocale.deckLabMyDecksSubtitle
+                                    1 -> AppLocale.deckLabMetaDeckSubtitle
+                                    else -> AppLocale.deckLabWinTournamentSubtitle
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = AppColors.textMuted
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Tabs: I Miei Deck | Meta Deck | Win Tournament
+                    SecondaryTabRow(
+                        selectedTabIndex = selectedTabIndex,
+                        containerColor = Color.Transparent,
+                        contentColor = AppColors.blue,
+                        divider = {}
+                    ) {
+                        deckLabTabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index },
+                                text = {
+                                    Text(
+                                        text = title,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                selectedContentColor = AppColors.blue,
+                                unselectedContentColor = AppColors.textMuted
                             )
                         }
                     }
@@ -166,7 +227,7 @@ fun DeckLabScreen(
             }
         },
         floatingActionButton = {
-            if (selectedDeck == null) {
+            if (selectedDeck == null && selectedTabIndex == 0) {
               Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -243,6 +304,32 @@ fun DeckLabScreen(
                                 showPremiumDeckExportDialog = true
                             }
                         }
+                    )
+                }
+
+                selectedTabIndex == 1 -> {
+                    // Meta Deck: gli archetipi in classifica.
+                    MetaArchetypeSection(
+                        viewModel = metaDeckViewModel,
+                        onImportDeck = { metaDeck -> importMetaDeck(metaDeck) },
+                        onCardClick = { metaDeck ->
+                            // Stesso limite della scheda Win Tournament.
+                            if (metaDeckViewModel.canViewMetaDeck()) {
+                                metaDeckViewModel.consumeMetaDeckView()
+                                metaDeckViewModel.selectDeck(metaDeck)
+                            } else {
+                                showPremiumMetaDeckDialog = true
+                            }
+                        }
+                    )
+                }
+
+                selectedTabIndex == 2 -> {
+                    // Win Tournament: i tornei con i primi tre.
+                    WinTournamentSection(
+                        viewModel = metaDeckViewModel,
+                        onImportDeck = { metaDeck -> importMetaDeck(metaDeck) },
+                        onPremiumRequired = { showPremiumMetaDeckDialog = true }
                     )
                 }
 
@@ -493,6 +580,18 @@ fun DeckLabScreen(
                 onDismiss = { showPremiumDeckDialog = false },
                 onUpgrade = {
                     showPremiumDeckDialog = false
+                    onNavigateToPremium()
+                }
+            )
+        }
+
+        if (showPremiumMetaDeckDialog) {
+            PremiumRequiredDialog(
+                title = AppLocale.premiumMetaDeckLimitTitle,
+                message = AppLocale.premiumMetaDeckLimitMessage,
+                onDismiss = { showPremiumMetaDeckDialog = false },
+                onUpgrade = {
+                    showPremiumMetaDeckDialog = false
                     onNavigateToPremium()
                 }
             )

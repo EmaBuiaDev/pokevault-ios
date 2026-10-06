@@ -16,6 +16,8 @@ import com.emabuia.pokevault.data.CompetitiveRepository
 import com.emabuia.pokevault.screens.competitive.CompetitiveLogViewModel
 import com.emabuia.pokevault.screens.competitive.HandSimulatorViewModel
 import com.emabuia.pokevault.screens.competitive.DeckLabViewModel
+import com.emabuia.pokevault.screens.competitive.MetaDeckViewModel
+import com.emabuia.pokevault.data.remote.LimitlessTcgRepository
 import com.emabuia.pokevault.data.simulator.HandSimulatorLocalStore
 import com.emabuia.pokevault.screens.album.AlbumViewModel
 import com.emabuia.pokevault.screens.album.GoalAlbumViewModel
@@ -82,6 +84,9 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { CompetitiveRepository(get(), get(), get(named(CACHE)), get()) }
     // Mani salvate e prove gratuite: dati dell'app, non cache (iOS non le deve svuotare).
     single { HandSimulatorLocalStore(get(named(DATA))) }
+    // Uno solo per l'app: la cache dei tornei e il conto delle richieste a
+    // Limitless devono valere per tutte le schermate, come su Android.
+    single { LimitlessTcgRepository(get<io.ktor.client.HttpClient>(), get<FileCache>(named(DATA))) }
 }
 
 val viewModelModule = module {
@@ -99,6 +104,7 @@ val viewModelModule = module {
     factoryOf(::CompetitiveLogViewModel)
     factoryOf(::HandSimulatorViewModel)
     factoryOf(::DeckLabViewModel)
+    factory { MetaDeckViewModel(get(), get(), get(named(DATA))) }
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(

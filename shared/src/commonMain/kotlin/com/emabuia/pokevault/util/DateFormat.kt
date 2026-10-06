@@ -25,3 +25,11 @@ fun formatDayMonthTime(millis: Long, zone: TimeZone = TimeZone.currentSystemDefa
 
 /** "%.2f".format(value) su un telefono in italiano: due decimali, con la virgola. */
 fun formatEuro(value: Double): String = formatAmount(value)
+
+/** "%.1f".format(value) su un telefono in italiano: un decimale, con la virgola. */
+fun formatOneDecimal(value: Double): String {
+    val tenths = kotlin.math.round(value * 10).toLong()
+    val sign = if (tenths < 0) "-" else ""
+    val abs = kotlin.math.abs(tenths)
+    return "$sign${abs / 10},${abs % 10}"
+}
