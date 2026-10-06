@@ -57,7 +57,14 @@ class CollectionRepository(
      * La collezione da Firestore. Se la rete non risponde, quella salvata
      * sul telefono; solo senza nessuna delle due l'errore arriva a chi chiama.
      */
-    suspend fun load(): List<PokemonCard> {
+    suspend fun load(): List<PokemonCard> = loadIncludingDeckOnly().owned()
+
+    /**
+     * Anche le carte solo-deck, come getCardsIncludingDeckOnly() su Android:
+     * servono solo dove si guardano i mazzi (Hand Simulator, Deck Lab), che
+     * altrimenti avrebbero dei buchi al posto delle carte non possedute.
+     */
+    suspend fun loadIncludingDeckOnly(): List<PokemonCard> {
         val session = auth.session.value ?: throw NotSignedInException()
         val token = auth.validIdToken() ?: throw NotSignedInException()
         return try {
@@ -67,10 +74,10 @@ class CollectionRepository(
             }
             unreadable = documents.size - cards.size
             cache.write(key(session.uid), serializer, cards)
-            cards.owned()
+            cards
         } catch (e: Exception) {
             if (e is CancellationException) throw e
-            cached(session.uid) ?: throw e
+            cache.read(key(session.uid), serializer)?.data ?: throw e
         }
     }
 

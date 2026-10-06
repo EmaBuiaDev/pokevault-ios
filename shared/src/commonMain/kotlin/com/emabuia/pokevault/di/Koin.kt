@@ -14,6 +14,8 @@ import com.emabuia.pokevault.data.IllustratorRepository
 import com.emabuia.pokevault.data.CollectorRepository
 import com.emabuia.pokevault.data.CompetitiveRepository
 import com.emabuia.pokevault.screens.competitive.CompetitiveLogViewModel
+import com.emabuia.pokevault.screens.competitive.HandSimulatorViewModel
+import com.emabuia.pokevault.data.simulator.HandSimulatorLocalStore
 import com.emabuia.pokevault.screens.album.AlbumViewModel
 import com.emabuia.pokevault.screens.album.GoalAlbumViewModel
 import com.emabuia.pokevault.screens.illustrator.IllustratorViewModel
@@ -77,6 +79,8 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { IllustratorRepository(get(), get(named(CACHE)), get(), get(), get()) }
     single { CollectorRepository(get(), get(), get(named(CACHE)), get()) }
     single { CompetitiveRepository(get(), get(), get(named(CACHE)), get()) }
+    // Mani salvate e prove gratuite: dati dell'app, non cache (iOS non le deve svuotare).
+    single { HandSimulatorLocalStore(get(named(DATA))) }
 }
 
 val viewModelModule = module {
@@ -92,6 +96,7 @@ val viewModelModule = module {
     factoryOf(::AlbumViewModel)
     factoryOf(::GoalAlbumViewModel)
     factoryOf(::CompetitiveLogViewModel)
+    factoryOf(::HandSimulatorViewModel)
     factory { params -> ExpansionCardsViewModel(expansionId = params.get(), repository = get()) }
     factory { params ->
         CardDetailViewModel(
