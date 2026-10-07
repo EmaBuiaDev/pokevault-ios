@@ -95,21 +95,6 @@ class SetDetailViewModel(
             ?: CardOptions.LANGUAGES.first()
     }
 
-    private fun priceDataFromCard(card: TcgCard): PokeWalletPriceData? {
-        val prices = card.cardmarket?.prices ?: return null
-        if (!prices.hasPositiveEurPrice()) return null
-        return PokeWalletPriceData(
-            eurAvg = prices.averageSellPrice,
-            eurLow = prices.lowPrice,
-            eurTrend = prices.trendPrice,
-            eurAvg1 = prices.avg1,
-            eurAvg7 = prices.avg7,
-            eurAvg30 = prices.avg30,
-            cardMarketUrl = card.cardmarket?.url,
-            tcgPlayerUrl = card.tcgplayer?.url,
-        )
-    }
-
     fun loadSet(setId: String, sourceMacro: String? = null) {
         val normalizedMacro = sourceMacro?.trim()?.uppercase()
         if (currentSetId == setId && currentSourceMacro == normalizedMacro) return
@@ -204,9 +189,7 @@ class SetDetailViewModel(
         uiState = uiState.copy(selectedSupertype = supertype)
     }
 
-    private fun priceEntryOf(card: TcgCard): PriceEntry? = priced(card).cardmarket?.prices?.let {
-        PriceEntry(avg = it.averageSellPrice, low = it.lowPrice, trend = it.trendPrice)
-    }
+    private fun priceEntryOf(card: TcgCard): PriceEntry? = priceEntryOfCard(priced(card))
 
     fun addCardWithDetails(tcgCard: TcgCard, variant: String, quantity: Int, condition: String, language: String) {
         viewModelScope.launch {
@@ -335,4 +318,29 @@ class SetDetailViewModel(
 private fun Map<String, Set<String>>.withVariant(cardId: String, variant: String): Map<String, Set<String>> {
     if (cardId.isBlank() || variant.isBlank()) return this
     return this + (cardId to ((this[cardId] ?: emptySet()) + variant))
+}
+
+/**
+ * I prezzi della scheda carta presi da quelli che la carta ha gia' (dal
+ * Worker, con le medie a 1/7/30 giorni); null se non ha un prezzo in euro.
+ * Serve al Pokedex e alla pagina illustratore.
+ */
+internal fun priceDataFromCard(card: TcgCard): PokeWalletPriceData? {
+    val prices = card.cardmarket?.prices ?: return null
+    if (!prices.hasPositiveEurPrice()) return null
+    return PokeWalletPriceData(
+        eurAvg = prices.averageSellPrice,
+        eurLow = prices.lowPrice,
+        eurTrend = prices.trendPrice,
+        eurAvg1 = prices.avg1,
+        eurAvg7 = prices.avg7,
+        eurAvg30 = prices.avg30,
+        cardMarketUrl = card.cardmarket?.url,
+        tcgPlayerUrl = card.tcgplayer?.url,
+    )
+}
+
+/** Il prezzo da salvare in collezione, dai prezzi Cardmarket della carta. */
+internal fun priceEntryOfCard(card: TcgCard): PriceEntry? = card.cardmarket?.prices?.let {
+    PriceEntry(avg = it.averageSellPrice, low = it.lowPrice, trend = it.trendPrice)
 }

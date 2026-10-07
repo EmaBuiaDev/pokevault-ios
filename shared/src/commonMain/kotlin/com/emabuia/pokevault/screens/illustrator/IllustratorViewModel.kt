@@ -3,25 +3,26 @@ package com.emabuia.pokevault.screens.illustrator
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emabuia.pokevault.data.AuthRepository
-import com.emabuia.pokevault.data.CatalogRepository
-import com.emabuia.pokevault.data.Card
 import com.emabuia.pokevault.data.CollectionRepository
-import com.emabuia.pokevault.data.ExpansionsState
+import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.IllustratorRepository
+import com.emabuia.pokevault.data.PokeWalletPriceData
+import com.emabuia.pokevault.data.PokedexCatalog
 import com.emabuia.pokevault.data.model.PokemonCard
+import com.emabuia.pokevault.data.remote.TcgCard
+import com.emabuia.pokevault.screens.pokedex.priceDataFromCard
+import com.emabuia.pokevault.screens.pokedex.priceEntryOfCard
 import com.emabuia.pokevault.util.IllustratorEntry
 import com.emabuia.pokevault.util.IllustratorRow
 import com.emabuia.pokevault.util.Illustrators
 import io.ktor.utils.io.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-/** Le carte di un artista in un set: i gruppi della pagina illustratore. */
-data class IllustratorSetGroup(val setId: String, val setName: String, val cards: List<Card>)
 
 data class IllustratorUiState(
     // Parte a true: al primo frame si sta gia' caricando, o la lista lampeggerebbe "nessun artista".
@@ -33,27 +34,34 @@ data class IllustratorUiState(
     /** Carte in collezione che non vengono dal catalogo italiano: non contano per nessuno. */
     val nonItalianOwnedCount: Int = 0,
     val followedKeys: Set<String> = emptySet(),
-    val detailCards: List<Card> = emptyList(),
+    /** Le carte dell'artista come nel Pokedex: col set (nome, data di uscita) e i prezzi. */
+    val detailCards: List<TcgCard> = emptyList(),
     val isDetailLoading: Boolean = false,
-    /** id espansione -> (nome, data di uscita), per i gruppi della pagina artista. */
-    val expansionInfo: Map<String, Pair<String, String>> = emptyMap(),
+    /** Le stampe possedute di ogni carta, per i badge sulla miniatura. */
+    val ownedVariants: Map<String, Set<String>> = emptyMap(),
+    val isAddingCard: String? = null,
+    /** Prezzi della carta aperta nella scheda. */
+    val sheetPrices: PokeWalletPriceData? = null,
+    val isSheetPriceLoading: Boolean = false,
 ) {
     val rows: List<IllustratorRow> by lazy { Illustrators.rows(entries, ownedApiIds, followedKeys) }
 
     fun rowFor(key: String): IllustratorRow? = rows.firstOrNull { it.key == key }
 
-    fun isOwned(card: Card): Boolean = card.italianId()?.let { it in ownedApiIds } == true
+    fun isOwned(cardId: String): Boolean = cardId.trim() in ownedApiIds
 }
 
 /**
  * IllustratorViewModel dell'app Android: l'indice del catalogo incrociato con
- * la collezione, ricalcolato dal vivo. Le carte si aggiungono dal dettaglio
- * carta, come dal resto dell'app iOS; qui non c'e' l'aggiunta rapida.
+ * la collezione, ricalcolato dal vivo. Dalla pagina di un artista le carte si
+ * aggiungono come dalla pagina di un'espansione: aggiunta rapida sulla tessera
+ * o scheda carta.
  */
 class IllustratorViewModel(
     private val repository: IllustratorRepository,
     private val collection: CollectionRepository,
-    private val catalog: CatalogRepository,
+    private val pokedex: PokedexCatalog,
+    private val writer: CollectionWriter,
     private val auth: AuthRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(IllustratorUiState())
@@ -99,6 +107,10 @@ class IllustratorViewModel(
                 signedIn = signedIn,
                 ownedApiIds = owned.mapTo(HashSet()) { card -> card.apiCardId.trim() },
                 nonItalianOwnedCount = owned.count { card -> !card.apiCardId.trim().startsWith("ita:") },
+                ownedVariants = owned.asSequence()
+                    .filter { card -> card.apiCardId.isNotBlank() && card.variant.isNotBlank() }
+                    .groupBy({ card -> card.apiCardId.trim() }, { card -> card.variant })
+                    .mapValues { (_, variants) -> variants.toSet() },
             )
         }
     }
@@ -132,35 +144,55 @@ class IllustratorViewModel(
         viewModelScope.launch {
             _state.update { it.copy(isDetailLoading = true, detailCards = emptyList()) }
             val cards = runCatching { repository.cards(entry) }.getOrDefault(emptyList())
+            // Le carte del Pokedex, coi prezzi del Worker: cosi' la griglia e la
+            // scheda sono quelle della pagina espansione.
+            val ids = cards.mapNotNull { it.italianId() }
+            val byId = runCatching { pokedex.getCardsByIds(ids) }.getOrDefault(emptyMap())
             if (loadedDetailKey != key) return@launch
-            _state.update { it.copy(isDetailLoading = false, detailCards = cards) }
-            if (_state.value.expansionInfo.isEmpty()) loadExpansionInfo()
+            _state.update { it.copy(isDetailLoading = false, detailCards = ids.mapNotNull { id -> byId[id] }) }
         }
     }
 
-    private suspend fun loadExpansionInfo() {
-        runCatching { catalog.ensureExpansions() }
-        val expansions = (catalog.expansions.value as? ExpansionsState.Ready)?.expansions.orEmpty()
-        _state.update { state ->
-            state.copy(expansionInfo = expansions.associate { it.id.lowercase() to (it.name to it.releaseDate.orEmpty()) })
+    /** I prezzi della carta aperta nella scheda; null chiude la scheda. Le carte li hanno gia'. */
+    fun loadSheetPrices(card: TcgCard?) {
+        _state.update { it.copy(sheetPrices = card?.let(::priceDataFromCard), isSheetPriceLoading = false) }
+    }
+
+    /**
+     * Aggiunge una carta dalla pagina di un illustratore, come dalla pagina di
+     * un'espansione. Il prezzo e' il minimo di Cardmarket, come ovunque.
+     */
+    fun addCard(card: TcgCard, variant: String, quantity: Int, condition: String, language: String) {
+        viewModelScope.launch {
+            _state.update { it.copy(isAddingCard = card.id) }
+            try {
+                writer.addFromCatalog(
+                    card.source,
+                    card.set?.name.orEmpty(),
+                    priceEntryOfCard(card),
+                    variant,
+                    quantity,
+                    condition,
+                    language.ifBlank { "🇮🇹 Italiano" },
+                )
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
+            // Il bordo resta visibile un attimo: senza, il riscontro del tocco
+            // passa inosservato su una griglia da tre colonne.
+            delay(350)
+            _state.update { it.copy(isAddingCard = null) }
         }
     }
 
-    companion object {
-        /**
-         * I gruppi in ordine cronologico, dal set piu' recente: i set di un
-         * artista raccontano la sua carriera solo se messi in fila per data.
-         */
-        fun groups(cards: List<Card>, info: Map<String, Pair<String, String>>): List<IllustratorSetGroup> =
-            cards.groupBy { it.espansioneId.lowercase() }
-                .entries
-                .sortedWith(compareByDescending<Map.Entry<String, List<Card>>> { info[it.key]?.second.orEmpty() }.thenBy { it.key })
-                .map { (setId, setCards) ->
-                    IllustratorSetGroup(
-                        setId = setId,
-                        setName = info[setId]?.first?.takeIf { it.isNotBlank() } ?: setId.uppercase(),
-                        cards = setCards.sortedWith(Card.byNumber),
-                    )
-                }
+    /** Come nella pagina espansione: lascia stare le copie solo-deck. */
+    fun removeCard(card: TcgCard) {
+        viewModelScope.launch {
+            try {
+                writer.deleteAllPrints(card.id)
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+            }
+        }
     }
 }

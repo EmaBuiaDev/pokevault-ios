@@ -32,11 +32,14 @@ import com.emabuia.pokevault.firebase.GoogleSignIn
 import com.emabuia.pokevault.firebase.platformGoogleAuthLauncher
 import com.emabuia.pokevault.screens.auth.AuthViewModel
 import com.emabuia.pokevault.screens.card.CardDetailViewModel
+import com.emabuia.pokevault.screens.collection.AddCardViewModel
 import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
+import com.emabuia.pokevault.ui.home.HomeViewModel
 import com.emabuia.pokevault.screens.settings.SettingsViewModel
 import com.emabuia.pokevault.screens.stats.StatsViewModel
 import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
+import com.emabuia.pokevault.ui.theme.HomeSpritePreference
 import com.emabuia.pokevault.ui.theme.ThemePreference
 import com.emabuia.pokevault.data.trade.OverpassClient
 import com.emabuia.pokevault.data.trade.TradeApi
@@ -85,6 +88,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { FirestoreWrites(get()) }
     single { CollectionWriter(get(), get(), get()) }
     single { ThemePreference(get(named(DATA))) }
+    single { HomeSpritePreference(get(named(DATA))) }
     single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
     single { PremiumRepository(get(), get(), now = ::nowMillis) }
@@ -104,8 +108,10 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
 
 val viewModelModule = module {
     factoryOf(::ExpansionsViewModel)
+    factoryOf(::HomeViewModel)
     factoryOf(::AuthViewModel)
     factoryOf(::CollectionViewModel)
+    factoryOf(::AddCardViewModel)
     factoryOf(::StatsViewModel)
     factoryOf(::WishlistViewModel)
     factoryOf(::SettingsViewModel)

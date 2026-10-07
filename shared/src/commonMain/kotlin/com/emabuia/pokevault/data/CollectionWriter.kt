@@ -84,6 +84,40 @@ class CollectionWriter(
         addPrint(card, expansionName, if (deckOnly) null else price, "Normal", quantity, "Near Mint", "Italiano", deckOnly, supertypeOverride)
 
     /**
+     * Una carta scritta a mano da "Aggiungi carta" (addCard su Android con
+     * apiCardId vuoto): sempre un documento nuovo, con voto, ente e note.
+     */
+    suspend fun addManual(card: PokemonCard): String {
+        val (uid, token) = credentials()
+        val id = writes.createCard(uid, token, linkedMapOf(
+            "name" to card.name,
+            "imageUrl" to card.imageUrl,
+            "set" to card.set,
+            "rarity" to card.rarity,
+            "type" to card.type,
+            "hp" to card.hp,
+            "supertype" to card.supertype,
+            "subtypes" to card.subtypes,
+            "isGraded" to card.isGraded,
+            "grade" to card.grade,
+            "gradingCompany" to card.gradingCompany,
+            "estimatedValue" to card.estimatedValue,
+            "quantity" to card.quantity,
+            "condition" to card.condition,
+            "notes" to card.notes,
+            "apiCardId" to card.apiCardId,
+            "cardNumber" to card.cardNumber,
+            "variant" to card.variant,
+            "language" to canonicalDisplayLanguage(card.language),
+            "deckOnly" to card.deckOnly,
+            "addedAt" to ServerNow,
+        ))
+        bestEffortTotals(uid, token, card.quantity.toLong(), card.estimatedValue * card.quantity)
+        collection.notifyChanged()
+        return id
+    }
+
+    /**
      * Una carta che il catalogo non conosce, coi soli dati della decklist: il
      * ripiego di lookupAndCreateCard su Android. Senza apiCardId non si fonde
      * con niente, come addCard li'.

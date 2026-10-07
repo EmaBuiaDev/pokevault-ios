@@ -204,6 +204,16 @@ class CollectionViewModel(
         scheduleRecompute()
     }
 
+    /** "Vedi tutte" dalla Home: tutte le carte, le ultime aggiunte in cima, nessun filtro. */
+    fun showRecentFirst() {
+        uiState = uiState.copy(
+            layout = CollectionLayout.ALL,
+            sort = CollectionSort.NEWEST,
+            filter = CollectionFilter()
+        )
+        scheduleRecompute()
+    }
+
     fun setExpansionOrder(order: ExpansionOrder) {
         if (order == uiState.expansionOrder) return
         uiState = uiState.copy(expansionOrder = order)

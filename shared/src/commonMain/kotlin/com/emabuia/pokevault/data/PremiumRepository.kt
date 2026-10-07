@@ -40,6 +40,22 @@ class PremiumRepository(
         return if (bought == null || gift == null) null else false
     }
 
+    /**
+     * Fino a quando dura il mese regalo (PremiumManager.giftUntilMs su
+     * Android); 0 se non c'e' o se il server non risponde.
+     */
+    suspend fun giftUntilMs(): Long {
+        val token = auth.validIdToken() ?: return 0L
+        return try {
+            json.decodeFromString<GiftStatus>(
+                client.get("${baseUrl.trimEnd('/')}/v1/gift/me") { bearerAuth(token) }.bodyAsText()
+            ).giftUntilMs ?: 0L
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            0L
+        }
+    }
+
     private suspend fun read(block: suspend () -> Boolean): Boolean? = try {
         block()
     } catch (e: Exception) {

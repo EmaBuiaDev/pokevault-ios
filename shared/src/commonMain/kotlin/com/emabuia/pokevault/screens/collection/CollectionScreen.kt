@@ -136,6 +136,11 @@ fun CollectionScreen(
     onCardClick: (String) -> Unit = {},
 ) {
     val viewModel = koinViewModel<CollectionViewModel>(key = session.uid)
+    // La richiesta della Home ("Vedi tutte"): chiave sulla richiesta, cosi'
+    // vale anche quando la schermata c'era gia' e viene solo ripresa.
+    LaunchedEffect(CollectionShortcut.pendingRecent) {
+        if (CollectionShortcut.consumeRecent()) viewModel.showRecentFirst()
+    }
     val state = viewModel.uiState
     var showFilters by remember { mutableStateOf(false) }
 

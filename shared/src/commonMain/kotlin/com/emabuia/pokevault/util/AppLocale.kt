@@ -525,6 +525,18 @@ object AppLocale {
         "Buio", "Metallo", "Drago", "Folletto", "Normale", "Incolore",
     )
 
+    /** Le rarita' della tendina di "Aggiungi carta", come su Android. */
+    fun getRarities(): List<String> = listOf(
+        "Comune", "Non Comune", "Rara", "Rara Holo", "Ultra Rara",
+        "Rara Segreta", "Rara Fantastica", "Full Art", "Arte Alternativa",
+        "Rara Arcobaleno", "Rara Oro",
+    )
+
+    /** Le condizioni della tendina di "Aggiungi carta", come su Android. */
+    fun getConditions(): List<String> = listOf(
+        "Mint", "Near Mint", "Eccellente", "Buono", "Leggermente Giocata", "Giocata", "Povera",
+    )
+
     // Competitive e Match log: gli stessi testi dell'app Android.
     val addMatch: String get() = "Registra Partita"
     val addTournament: String get() = "Registra Torneo"
@@ -1474,4 +1486,57 @@ object AppLocale {
     fun wishlistUnpricedNote(count: Int) = if (count == 1) "1 senza prezzo" else "$count senza prezzo"
     val wishlistUpdateFailed: String get() = "Impossibile aggiornare la wishlist"
     val wishlistUpdated: String get() = "Wishlist aggiornata"
+
+    // Impostazioni e intestazione della Home: gli stessi testi dell'app Android.
+    val premiumSettingsLabel: String get() = "PokeVault Premium"
+    fun premiumSettingsSubtitleGift(expiry: String): String = "Mese regalo attivo fino al $expiry"
+    val premiumSettingsSubtitleActive: String get() = "Abbonamento attivo — grazie, davvero"
+    // TradeRadar c'e' anche su iOS: e' il testo di Android con TRADE_ENABLED.
+    val premiumSettingsSubtitleFree: String get() = "TradeRadar senza limiti, album, deck, wishlist e tornei illimitati, più extra"
+    val homeSpriteSettingsTitle: String get() = "Sprite Home"
+    val homeSpriteSettingsSubtitle: String get() = "Scegli il Pokemon mostrato in Home"
+    val homeSpriteDialogTitle: String get() = "Seleziona Sprite Home"
+    val homeSpriteRandom: String get() = "Casuale"
+    val premiumHomeSpriteTitle: String get() = "Sprite Home Premium"
+    val premiumHomeSpriteMessage: String get() = "La scelta fissa dello sprite Home e disponibile solo con Premium.\n\nPassa a Premium per personalizzare il Pokemon della Home."
+    val creatorSectionTitle: String get() = "Chi c'è dietro l'app?"
+    val creatorSectionBody: String get() = "👋 Ciao! Sono Emanuele, il creatore di questa App\n" +
+        "Se stai leggendo questo messaggio, significa che hai curiosato nelle impostazioni... e ne sono felice!\n\n" +
+        "Devi sapere una cosa: dietro a questa app non c'è una grande azienda, ci sono solo io. L'ho pensata, disegnata e programmata interamente da zero. Ci ho messo tanta passione, innumerevoli ore di lavoro nel tempo libero e una quantità imbarazzante di caffè. ☕\n\n" +
+        "Il mio obiettivo è renderla sempre migliore, ma essere uno sviluppatore indipendente è una bella sfida. I server costano, i bug (ahimè) si nascondono sempre, e le nuove idee richiedono tempo.\n\n" +
+        "Se questa app ti è utile, ti fa sorridere o ti semplifica un po' la giornata, ecco come puoi darmi una mano a portarla avanti:\n\n" +
+        "👑 Passa alla versione Premium: Un piccolo abbonamento per te, un supporto vitale per me! Oltre a sbloccare tutte le funzionalità esclusive, mi darai una mano concreta a coprire i costi di gestione e mi permetterai di dedicare sempre più tempo per aggiungere nuove fantastiche novità.\n\n" +
+        "⭐️ Lascia una recensione a 5 stelle: Non costa nulla, ma per un dev indipendente come me vale oro. Aiuta l'app a crescere e a farsi conoscere negli store!\n\n" +
+        "📢 Parlane in giro: Consigliala ai tuoi amici, parenti o sui social. Il passaparola è la pubblicità più bella del mondo.\n\n" +
+        "Qualsiasi cosa tu decida di fare, anche solo continuare a usare l'app nella sua versione base, grazie di cuore. È grazie a persone come te che questo progetto ha senso di esistere.\n\n" +
+        "Per qualsiasi cosa — un'idea, una segnalazione, due chiacchiere — mi trovi su TikTok, qui sopra. Buona navigazione!\n\n" +
+        "Emanuele 👨🏻‍💻"
+    fun helloUser(name: String) = "Ciao, $name!"
+    val homeSubtitle: String get() = "Gestisci la tua collezione con stile ✨"
+    val settings: String get() = "Impostazioni"
+
+    // Home, ultime carte aggiunte: gli stessi testi dell'app Android.
+    val homeRecentTitle: String get() = "Aggiunte di recente"
+    val addedToday: String get() = "Oggi"
+    val addedYesterday: String get() = "Ieri"
+    fun addedDaysAgo(days: Int): String = "$days giorni fa"
+    val homeEmptyTitle: String get() = "La tua collezione è vuota"
+    val homeEmptyHint: String get() = "Scansiona la prima carta per iniziare."
+
+    // Aggiungi carta: gli stessi testi dell'app Android.
+    val editCard: String get() = "Modifica carta"
+    val cardNameRequiredLabel: String get() = "Nome carta *"
+    val cardNamePlaceholder: String get() = "es. Charizard VMAX"
+    val setExpansionLabel: String get() = "Set / Espansione"
+    val setPlaceholder: String get() = "es. Base Set, Evolving Skies"
+    val hpPlaceholder: String get() = "es. 180"
+    val valueLabel: String get() = "Valore (euro)"
+    val valuePlaceholder: String get() = "es. 25.50"
+    val gradedCard: String get() = "Carta gradata"
+    val gradedHint: String get() = "PSA, BGS, CGC"
+    val gradeFieldLabel: String get() = "Voto (Grade)"
+    val gradePlaceholder: String get() = "es. 9.5"
+    val notes: String get() = "Note"
+    val additionalNotesPlaceholder: String get() = "Note aggiuntive..."
+    val imageUrlOptionalLabel: String get() = "URL immagine (opzionale)"
 }

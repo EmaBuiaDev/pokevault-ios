@@ -3,6 +3,7 @@ package com.emabuia.pokevault.util
 import com.emabuia.pokevault.data.formatAmount
 import com.emabuia.pokevault.data.model.Timestamp
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -29,6 +30,19 @@ private val ITALIAN_MONTHS = listOf(
     "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre",
 )
 private val ITALIAN_MONTHS_SHORT = listOf("gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic")
+
+/** SimpleDateFormat("d MMM", Locale.ITALIAN): "6 ott". */
+fun formatDayShortMonth(millis: Long, zone: TimeZone = TimeZone.currentSystemDefault()): String {
+    val date = Instant.fromEpochMilliseconds(millis).toLocalDateTime(zone).date
+    return "${date.day} ${ITALIAN_MONTHS_SHORT[date.month.number - 1]}"
+}
+
+/** Quanti giorni di calendario separano [millis] da [nowMillis], nel fuso del telefono. */
+fun calendarDaysBetween(millis: Long, nowMillis: Long, zone: TimeZone = TimeZone.currentSystemDefault()): Int {
+    val day = Instant.fromEpochMilliseconds(millis).toLocalDateTime(zone).date
+    val today = Instant.fromEpochMilliseconds(nowMillis).toLocalDateTime(zone).date
+    return day.daysUntil(today)
+}
 
 /** DateTimeFormatter "d MMMM" in italiano: "6 ottobre". */
 fun formatDayMonthName(millis: Long, zone: TimeZone = TimeZone.currentSystemDefault()): String {

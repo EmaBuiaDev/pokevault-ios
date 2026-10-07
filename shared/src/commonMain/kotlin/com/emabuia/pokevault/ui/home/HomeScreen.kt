@@ -46,17 +46,22 @@ import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
 import com.emabuia.pokevault.ui.components.pressScale
 import com.emabuia.pokevault.ui.home.components.MenuGrid
 import com.emabuia.pokevault.ui.home.components.HomeSearchEntry
+import com.emabuia.pokevault.ui.home.components.RecentCardsSection
+import com.emabuia.pokevault.ui.home.components.WelcomeHeader
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import com.emabuia.pokevault.ui.theme.AppColors
 import com.emabuia.pokevault.util.AppLocale
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * La Home: saluto, la griglia delle sezioni (MenuGrid, la stessa dell'app
- * Android) e le ultime espansioni uscite.
+ * La Home dell'app Android: saluto con lo sprite, ricerca, la griglia delle
+ * sezioni e le ultime carte aggiunte alla collezione.
  *
- * Su Android sotto la griglia ci sono le ultime carte aggiunte alla collezione:
- * qui la collezione non c'e' ancora (arriva col login), e al loro posto stanno
- * le ultime uscite, che non hanno bisogno di un account.
+ * Su iOS la Home si apre anche senza accesso (il catalogo non chiede un
+ * account): in quel caso al posto delle carte recenti stanno le ultime
+ * espansioni uscite. Manca il banner "sei offline", che su iOS non ha ancora
+ * un modo di sapere se c'e' rete.
  */
 @Composable
 fun HomeScreen(
@@ -64,57 +69,93 @@ fun HomeScreen(
     onExpansionClick: (Expansion) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onRecentCardClick: (key: String) -> Unit = {},
+    onSeeAllRecent: () -> Unit = {},
+    onScan: () -> Unit = {},
 ) {
     val viewModel = koinViewModel<ExpansionsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val session by koinViewModel<AuthViewModel>().session.collectAsStateWithLifecycle()
+    val homeViewModel = koinViewModel<HomeViewModel>()
+    val selectedHomeSpriteId by homeViewModel.selectedHomeSpriteId.collectAsStateWithLifecycle()
+
+    // La cascata parte al primo frame utile e il flag resta acceso nel
+    // ViewModel: tornando sulla Home da un'altra tab la griglia e' gia' li'.
+    LaunchedEffect(Unit) { homeViewModel.markEntered() }
+
+    val scrollState = rememberScrollState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(AppColors.background)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.padding(start = 20.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-            Text("Ciao, ${session?.name ?: "Allenatore"}!", color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Gestisci la tua collezione con stile ✨", color = AppColors.textSecondary, fontSize = 14.sp)
-            }
-            // Come su Android: le impostazioni dall'ingranaggio accanto al saluto.
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Settings, contentDescription = AppLocale.settingsTitle, tint = AppColors.textSecondary)
-            }
-        }
-        Spacer(Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Header: sprite + nome + impostazioni su una riga
+        WelcomeHeader(
+            userName = session?.name ?: "Allenatore",
+            selectedPokemonId = if (homeViewModel.isPremium && selectedHomeSpriteId != 0) selectedHomeSpriteId else null,
+            onSettingsClick = onSettingsClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                // Parallax: l'header sfuma e si stacca in su un po' piu' in
+                // fretta del contenuto, tutto in fase di disegno.
+                .graphicsLayer {
+                    val offset = scrollState.value.toFloat()
+                    alpha = (1f - offset / 110.dp.toPx()).coerceAtLeast(0f)
+                    translationY = -(offset * 0.35f).coerceAtMost(20.dp.toPx())
+                }
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
         // Come su Android: la ricerca su tutto il catalogo e' il primo gesto, e
         // qui e' un pulsante che porta al Pokedex, dove c'e' il campo vero.
         HomeSearchEntry(onClick = onSearchClick)
-        Spacer(Modifier.height(16.dp))
 
-        MenuGrid(onItemClick = onMenuClick)
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(Modifier.height(24.dp))
-        Text(
-            "Ultime uscite",
-            color = AppColors.textPrimary,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-        Spacer(Modifier.height(12.dp))
-        (state as? ExpansionsState.Ready)?.let { ready ->
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(ready.expansions.take(8), key = { it.id }) { expansion ->
-                    LatestExpansionTile(expansion, onClick = { onExpansionClick(expansion) })
+        MenuGrid(cascadeVisible = homeViewModel.hasEnteredOnce, onItemClick = onMenuClick)
+
+        if (session != null) {
+            // Le ultime carte aggiunte: il tocco apre la carta con la chiave di
+            // gruppo, la stessa che usa Collezione.
+            RecentCardsSection(
+                groups = homeViewModel.recentGroups,
+                hasCards = homeViewModel.hasCards,
+                isLoading = homeViewModel.isLoading,
+                onCardClick = onRecentCardClick,
+                onSeeAll = onSeeAllRecent,
+                onScan = onScan
+            )
+        } else {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                "Ultime uscite",
+                color = AppColors.textPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            (state as? ExpansionsState.Ready)?.let { ready ->
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(ready.expansions.take(8), key = { it.id }) { expansion ->
+                        LatestExpansionTile(expansion, onClick = { onExpansionClick(expansion) })
+                    }
                 }
             }
         }
-        Spacer(Modifier.height(24.dp))
+
+        // Spazio per il pulsante dello scanner, che galleggia sopra questa colonna.
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }
 

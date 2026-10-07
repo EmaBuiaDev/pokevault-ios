@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.emabuia.pokevault.data.AccountDeleter
 import com.emabuia.pokevault.data.AuthRepository
+import com.emabuia.pokevault.data.PremiumRepository
 import com.emabuia.pokevault.data.Reauthentication
 import com.emabuia.pokevault.data.Session
 import com.emabuia.pokevault.firebase.FirebaseAuthException
 import com.emabuia.pokevault.firebase.GoogleSignInCancelled
 import com.emabuia.pokevault.screens.auth.AuthViewModel
+import com.emabuia.pokevault.ui.theme.HomeSpritePreference
 import com.emabuia.pokevault.ui.theme.ThemeMode
 import com.emabuia.pokevault.ui.theme.ThemePreference
 import io.ktor.utils.io.CancellationException
@@ -30,9 +32,30 @@ class SettingsViewModel(
     private val auth: AuthRepository,
     private val deleter: AccountDeleter,
     private val theme: ThemePreference,
+    private val premium: PremiumRepository,
+    private val homeSprite: HomeSpritePreference,
 ) : ViewModel() {
     val session: StateFlow<Session?> = auth.session
     val themeMode: StateFlow<ThemeMode> = theme.mode
+    val selectedHomeSpriteId: StateFlow<Int> = homeSprite.selectedId
+
+    // PremiumManager.isPremium e giftUntilMs su Android: qui si leggono dal Worker.
+    private val _isPremium = MutableStateFlow(false)
+    val isPremium: StateFlow<Boolean> = _isPremium.asStateFlow()
+    private val _giftUntilMs = MutableStateFlow(0L)
+    val giftUntilMs: StateFlow<Long> = _giftUntilMs.asStateFlow()
+
+    init {
+        if (auth.session.value != null) {
+            viewModelScope.launch { _isPremium.value = premium.isPremium() == true }
+            viewModelScope.launch { _giftUntilMs.value = premium.giftUntilMs() }
+        }
+    }
+
+    /** canChooseHomeSprite di PremiumManager: solo per chi e' Premium. */
+    fun canChooseHomeSprite(): Boolean = _isPremium.value
+
+    fun setHomeSprite(spriteId: Int) = homeSprite.set(spriteId)
 
     private val _delete = MutableStateFlow(DeleteState())
     val delete: StateFlow<DeleteState> = _delete.asStateFlow()

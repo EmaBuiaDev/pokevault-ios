@@ -32,7 +32,9 @@ import com.emabuia.pokevault.screens.album.CreateAlbumScreen
 import com.emabuia.pokevault.screens.album.CreateGoalAlbumScreen
 import com.emabuia.pokevault.screens.album.GoalAlbumDetailScreen
 import com.emabuia.pokevault.screens.auth.RequireLogin
+import com.emabuia.pokevault.screens.collection.AddCardScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
+import com.emabuia.pokevault.screens.collection.CollectionShortcut
 import com.emabuia.pokevault.screens.collection.CollectionCardDetailScreen
 import com.emabuia.pokevault.screens.competitive.AddMatchScreen
 import com.emabuia.pokevault.screens.competitive.AddTournamentScreen
@@ -99,6 +101,10 @@ data class CardDetailDestination(val expansionId: String, val cardId: String)
 
 @Serializable
 object WishlistDestination
+
+/** "Aggiungi carta": una carta scritta a mano, dalla Collezione vuota. */
+@Serializable
+object AddCardDestination
 
 @Serializable
 data class WishlistDetailDestination(val wishlistId: String)
@@ -247,6 +253,12 @@ fun App() {
                                 onExpansionClick = openExpansion,
                                 onSearchClick = { navController.selectTab(BottomTab.POKEDEX) },
                                 onSettingsClick = { navController.navigate(SettingsDestination) },
+                                onRecentCardClick = { key -> navController.navigate(CollectionCardDestination(key)) },
+                                onSeeAllRecent = {
+                                    CollectionShortcut.requestRecent()
+                                    navController.selectTab(BottomTab.CARDS)
+                                },
+                                onScan = { navController.navigate(ScannerDestination) },
                             )
                         }
                         composable<CollectionDestination> {
@@ -254,9 +266,14 @@ fun App() {
                                 CollectionScreen(
                                     session = session,
                                     onLogout = onLogout,
-                                    onAddCard = { navController.selectTab(BottomTab.POKEDEX) },
+                                    onAddCard = { navController.navigate(AddCardDestination) },
                                     onCardClick = { key -> navController.navigate(CollectionCardDestination(key)) },
                                 )
+                            }
+                        }
+                        composable<AddCardDestination> {
+                            RequireLogin { _, _ ->
+                                AddCardScreen(onBack = { navController.popBackStack() })
                             }
                         }
                         composable<PokedexDestination> {
@@ -379,7 +396,6 @@ fun App() {
                             IllustratorDetailScreen(
                                 illustratorKey = entry.toRoute<IllustratorDetailDestination>().key,
                                 onBack = { navController.popBackStack() },
-                                onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
                             )
                         }
                         composable<SettingsDestination> {
