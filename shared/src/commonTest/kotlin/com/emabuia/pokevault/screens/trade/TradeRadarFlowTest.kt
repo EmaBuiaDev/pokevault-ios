@@ -73,6 +73,7 @@ class TradeRadarFlowTest {
     // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
     // schermata: smette di partire lavoro nuovo quando il test e' finito.
     private val stores = mutableListOf<ViewModelStore>()
+    private val viewModels = mutableListOf<TradeRadarViewModel>()
 
     @BeforeTest
     fun main() = Dispatchers.setMain(Dispatchers.Unconfined)
@@ -185,7 +186,10 @@ class TradeRadarFlowTest {
             overpass = OverpassClient(client),
             tradePrefs = TradePrefs(store),
             location = location,
-        ).also { vm -> stores += ViewModelStore().apply { put("trade-${stores.size}", vm) } }
+        ).also { vm ->
+            stores += ViewModelStore().apply { put("trade-${stores.size}", vm) }
+            viewModels += vm
+        }
     }
 
     /**
@@ -198,7 +202,20 @@ class TradeRadarFlowTest {
             if (condition()) return@withContext
             delay(20)
         }
-        fail("Dopo 10 secondi non e' vera: $what")
+        fail("Dopo 10 secondi non e' vera: $what\n${diagnosis()}")
+    }
+
+    /**
+     * A che punto e' rimasto ogni ViewModel del test, e cosa ha chiesto al
+     * server: introAndTierAreRemembered cadeva solo in CI, senza dire dove
+     * si fermava la catena profilo -> collezione -> ... -> proposte.
+     */
+    private fun diagnosis(): String = buildString {
+        viewModels.forEachIndexed { index, vm ->
+            appendLine("vm$index: screen=${vm.screen::class.simpleName} notice=${vm.notice} busy=${vm.busy} proposte=${vm.proposalsLoaded}")
+        }
+        append("chiamate: ")
+        append(tradeCalls.snapshot.joinToString { "${it.first.value} ${it.second.removePrefix("/v1/trade/")}" })
     }
 
     private fun sent(method: HttpMethod, path: String) = tradeCalls.snapshot.filter { it.first == method && it.second == "/v1/trade/$path" }
