@@ -77,8 +77,8 @@ import org.koin.compose.viewmodel.koinViewModel
  * Tutto quello che c'e' su Android: i tuoi deck (elenco, dettaglio, editor,
  * import, esporta) e le schede Meta Deck e Win Tournament da Limitless.
  *
- * [onCardClick] riceve l'id del catalogo ("ita:..."), non quello del
- * documento: su iOS il dettaglio di una carta si apre da li'.
+ * [onCardClick] riceve l'id del documento in collezione, come su Android:
+ * apre il dettaglio carta della Collezione.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -278,7 +278,7 @@ fun DeckLabScreen(
                         // dettaglio mostrerebbe un mazzo mezzo vuoto.
                         allOwnedCards = viewModel.allCards,
                         onBack = { selectedDeckId = null },
-                        onCardClick = { id -> viewModel.apiCardIdOf(id)?.let(onCardClick) },
+                        onCardClick = onCardClick,
                         onEdit = {
                             viewModel.prepareEdit(selectedDeck)
                             showSheet = true

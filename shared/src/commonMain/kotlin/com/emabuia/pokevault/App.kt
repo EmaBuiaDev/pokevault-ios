@@ -22,8 +22,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.emabuia.pokevault.data.Expansion
 import com.emabuia.pokevault.screens.ComingSoonScreen
-import com.emabuia.pokevault.screens.card.CardDetailScreen
-import com.emabuia.pokevault.screens.card.CardByApiIdScreen
 import com.emabuia.pokevault.screens.album.AlbumCollectionListScreen
 import com.emabuia.pokevault.screens.album.AlbumDetailScreen
 import com.emabuia.pokevault.screens.album.AlbumListScreen
@@ -97,9 +95,6 @@ object StatsDestination
 data class SetDetailDestination(val setId: String, val setName: String, val sourceMacro: String? = null)
 
 @Serializable
-data class CardDetailDestination(val expansionId: String, val cardId: String)
-
-@Serializable
 object WishlistDestination
 
 /** "Aggiungi carta": una carta scritta a mano, dalla Collezione vuota. */
@@ -136,10 +131,6 @@ object CreateChaseDestination
 
 @Serializable
 data class ChaseDetailDestination(val goalAlbumId: String)
-
-/** Una carta aperta dall'id di collezione, album o chase ("ita:me05:4"). */
-@Serializable
-data class CardByApiIdDestination(val apiCardId: String)
 
 @Serializable
 object IllustratorsDestination
@@ -299,21 +290,6 @@ fun App() {
                         composable<StatsDestination> {
                             RequireLogin { _, _ -> StatsScreen() }
                         }
-                        composable<CardDetailDestination> { entry ->
-                            val destination = entry.toRoute<CardDetailDestination>()
-                            CardDetailScreen(
-                                expansionId = destination.expansionId,
-                                cardId = destination.cardId,
-                                onBack = { navController.popBackStack() },
-                                // Le frecce sostituiscono la carta, non la impilano: Indietro
-                                // torna alla griglia, non a ogni carta sfogliata.
-                                onOpenCard = { expansionId, cardId ->
-                                    navController.popBackStack()
-                                    navController.navigate(CardDetailDestination(expansionId, cardId))
-                                },
-                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
-                            )
-                        }
                         composable<CollectorLabDestination> {
                             // Album e chase stanno sull'account: come Carte e Stats, serve l'accesso.
                             RequireLogin { _, _ ->
@@ -348,7 +324,7 @@ fun App() {
                             AlbumDetailScreen(
                                 albumId = entry.toRoute<AlbumDetailDestination>().albumId,
                                 onBack = { navController.popBackStack() },
-                                onCardClick = { card -> navController.navigate(CardByApiIdDestination(card.apiCardId)) },
+                                onCardClick = { card -> navController.navigate(CollectionCardDestination(card.id)) },
                             )
                         }
                         composable<ChaseListDestination> {
@@ -370,17 +346,6 @@ fun App() {
                             GoalAlbumDetailScreen(
                                 goalAlbumId = entry.toRoute<ChaseDetailDestination>().goalAlbumId,
                                 onBack = { navController.popBackStack() },
-                            )
-                        }
-                        composable<CardByApiIdDestination> { entry ->
-                            CardByApiIdScreen(
-                                apiCardId = entry.toRoute<CardByApiIdDestination>().apiCardId,
-                                onBack = { navController.popBackStack() },
-                                onOpenCard = { expansionId, cardId ->
-                                    navController.popBackStack()
-                                    navController.navigate(CardDetailDestination(expansionId, cardId))
-                                },
-                                onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
                             )
                         }
                         composable<GradedDestination> {
@@ -433,7 +398,7 @@ fun App() {
                         composable<DeckLabDestination> {
                             DeckLabScreen(
                                 onBack = { navController.popBackStack() },
-                                onCardClick = { apiCardId -> navController.navigate(CardByApiIdDestination(apiCardId)) },
+                                onCardClick = { cardId -> navController.navigate(CollectionCardDestination(cardId)) },
                             )
                         }
                         composable<HandSimulatorDestination> {

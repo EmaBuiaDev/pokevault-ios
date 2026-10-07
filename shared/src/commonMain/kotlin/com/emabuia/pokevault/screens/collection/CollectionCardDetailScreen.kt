@@ -180,11 +180,20 @@ fun CollectionCardDetailScreen(
             }
             // Da un id di documento si risale alla carta, e da li' a tutte le sue
             // stampe; le altre forme sono le chiavi con cui la collezione apre
-            // una tessera (vedi Android: getCard e poi getCards).
+            // una tessera (vedi Android: getCard e poi getCards). Il documento
+            // si cerca anche fra le carte solo-deck, come getCard su Android:
+            // dal Deck Lab si apre anche una carta che non si possiede, e se
+            // in collezione non ha altre stampe si mostra lei.
             val byDocument = allCards.firstOrNull { it.id == cardId }
+                ?: try {
+                    collection.loadIncludingDeckOnly().firstOrNull { it.id == cardId }
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    null
+                }
             val found = if (byDocument != null) {
                 val groupKey = byDocument.collectionGroupKey()
-                allCards.filter { it.collectionGroupKey() == groupKey }
+                allCards.filter { it.collectionGroupKey() == groupKey }.ifEmpty { listOf(byDocument) }
             } else {
                 allCards.filter {
                     it.collectionGroupKey() == cardId ||

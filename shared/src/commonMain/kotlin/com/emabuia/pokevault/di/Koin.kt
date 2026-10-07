@@ -31,7 +31,6 @@ import com.emabuia.pokevault.firebase.FirestoreWrites
 import com.emabuia.pokevault.firebase.GoogleSignIn
 import com.emabuia.pokevault.firebase.platformGoogleAuthLauncher
 import com.emabuia.pokevault.screens.auth.AuthViewModel
-import com.emabuia.pokevault.screens.card.CardDetailViewModel
 import com.emabuia.pokevault.screens.collection.AddCardViewModel
 import com.emabuia.pokevault.screens.collection.CollectionViewModel
 import com.emabuia.pokevault.screens.expansions.ExpansionsViewModel
@@ -127,16 +126,6 @@ val viewModelModule = module {
     factoryOf(::SetDetailViewModel)
     factory { TradeRadarViewModel(get(), get(), get(), get(), get(), get(), get(), get(), platformCoarseLocation()) }
     factory { MetaDeckViewModel(get(), get(), get(named(DATA))) }
-    factory { params ->
-        CardDetailViewModel(
-            expansionId = params.get(0),
-            cardId = params.get(1),
-            catalog = get(),
-            auth = get(),
-            collection = get(),
-            writer = get(),
-        )
-    }
 }
 
 /**

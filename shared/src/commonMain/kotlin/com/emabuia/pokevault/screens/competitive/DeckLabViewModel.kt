@@ -244,9 +244,6 @@ class DeckLabViewModel(
 
     private fun isEnergy(card: PokemonCard): Boolean = classifyCard(card) == "Energy"
 
-    /** L'id del catalogo di una carta del deck, per aprirne il dettaglio. */
-    fun apiCardIdOf(cardId: String): String? = allCardsById[cardId]?.apiCardId?.takeIf { it.isNotBlank() }
-
     // ── Premium: gli stessi limiti di PremiumManager ────────────────────────
 
     fun canCreateDeck(): Boolean =
