@@ -233,9 +233,7 @@ fun SetDetailScreen(
         sourceMacro?.trim()?.uppercase() == "ITA" || state.set?.language?.trim()?.uppercase() == "ITA"
     }
     val haptic = LocalHapticFeedback.current
-    val wishlistState by wishlistViewModel.state.collectAsStateWithLifecycle()
-    // Finche' il server non risponde non si blocca nessuno (PremiumManager su Android).
-    val isPremium = wishlistState.isPremium != false
+    val isPremium = wishlistViewModel.isPremium
     var selectedCard by remember { mutableStateOf<TcgCard?>(null) }
     var quickAddCard by remember { mutableStateOf<TcgCard?>(null) }
     var selectedRarityFilter by remember(setId, sourceMacro) { mutableStateOf<String?>(null) }
@@ -277,11 +275,11 @@ fun SetDetailScreen(
         val msg = state.successMessage ?: state.errorMessage
         if (msg != null) { snackbarHostState.showSnackbar(msg); viewModel.clearMessages() }
     }
-    LaunchedEffect(wishlistState.saveError) {
-        val msg = wishlistState.saveError
+    LaunchedEffect(wishlistViewModel.successMessage, wishlistViewModel.errorMessage) {
+        val msg = wishlistViewModel.successMessage ?: wishlistViewModel.errorMessage
         if (msg != null) {
             snackbarHostState.showSnackbar(msg)
-            wishlistViewModel.clearError()
+            wishlistViewModel.clearMessages()
         }
     }
 
@@ -376,10 +374,12 @@ fun SetDetailScreen(
         // canCreateWishlist() legge _isPremium.value, che non e' uno stato Compose:
         // da solo non farebbe ricomporre all'attivazione del premium. Passando da
         // isPremium (raccolto qui sopra) la composizione si iscrive davvero.
-        val canCreateWishlist = wishlistState.canCreate
+        val canCreateWishlist = remember(isPremium, wishlistViewModel.wishlists.size) {
+            wishlistViewModel.canCreateWishlist(isPremium)
+        }
         WishlistPickerDialog(
-            wishlists = wishlistState.wishlists,
-            selectedWishlistIds = card?.let { wishlistState.listIdsWith(it.id) } ?: emptySet(),
+            wishlists = wishlistViewModel.wishlists,
+            selectedWishlistIds = card?.let { wishlistViewModel.getWishlistIdsForCard(it.id) } ?: emptySet(),
             canCreateNew = canCreateWishlist,
             onDismiss = { pickerCard = null },
             onCreateNewRequested = {
@@ -393,7 +393,7 @@ fun SetDetailScreen(
             onConfirmSelection = { selectedIds ->
                 if (card != null) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    wishlistViewModel.setCardLists(card.id, selectedIds) {}
+                    wishlistViewModel.updateCardWishlists(card.id, selectedIds)
                 }
                 pickerCard = null
             }
@@ -406,13 +406,15 @@ fun SetDetailScreen(
             onConfirm = { draft ->
                 val card = createDialogCard
                 if (card != null) {
-                    wishlistViewModel.createWith(draft, card.id) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        createDialogCard = null
+                    wishlistViewModel.createWishlistAndAddCard(draft, card.id, isPremium) { success ->
+                        if (success) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            createDialogCard = null
+                        }
                     }
                 }
             },
-            isSaving = wishlistState.isSaving
+            isSaving = wishlistViewModel.isSaving
         )
     }
 
@@ -762,7 +764,7 @@ fun SetDetailScreen(
                                 TcgCardCompactItem(
                                     card = card,
                                     isOwned = card.id in state.ownedCardIds,
-                                    isWishlisted = wishlistState.listIdsWith(card.id).isNotEmpty(),
+                                    isWishlisted = wishlistViewModel.isCardWishlisted(card.id),
                                     isAdding = state.isAddingCard == card.id,
                                     isPopupOpen = quickAddCard?.id == card.id,
                                     isSelected = card.id in selectedCardIds,
@@ -797,7 +799,7 @@ fun SetDetailScreen(
                                         if (isSelectionMode) return@TcgCardCompactItem
 
                                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                        val wishlists = wishlistState.wishlists
+                                        val wishlists = wishlistViewModel.wishlists
                                         when {
                                             wishlists.isEmpty() -> createDialogCard = card
                                             else -> pickerCard = card
@@ -820,11 +822,11 @@ fun SetDetailScreen(
                                 TcgCardListRow(
                                     card = card,
                                     isOwned = card.id in state.ownedCardIds,
-                                    isWishlisted = wishlistState.listIdsWith(card.id).isNotEmpty(),
+                                    isWishlisted = wishlistViewModel.isCardWishlisted(card.id),
                                     ownedVariants = state.ownedVariants[card.id].orEmpty(),
                                     onClick = { selectedCard = card },
                                     onWishlistClick = {
-                                        val wishlists = wishlistState.wishlists
+                                        val wishlists = wishlistViewModel.wishlists
                                         when {
                                             wishlists.isEmpty() -> createDialogCard = card
                                             else -> pickerCard = card

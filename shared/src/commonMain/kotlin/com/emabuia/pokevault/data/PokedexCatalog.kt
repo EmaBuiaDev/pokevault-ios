@@ -69,6 +69,18 @@ class PokedexCatalog(private val catalog: CatalogRepository) {
         Result.failure(e)
     }
 
+    /**
+     * Le carte per id ("ita:me05:4"), coi prezzi: getCard di Android, ma in un
+     * colpo solo. Gli id che il catalogo italiano non conosce restano fuori.
+     */
+    suspend fun getCardsByIds(ids: Collection<String>): Map<String, TcgCard> = try {
+        val found = catalog.italianCardsById(ids)
+        if (found.isEmpty()) emptyMap() else withPrices(found.values.toList(), setsById()).associateBy { it.id }
+    } catch (e: Exception) {
+        if (e is CancellationException) throw e
+        emptyMap()
+    }
+
     /** I prezzi di un'espansione per numero di carta, come li legge il Pokedex. */
     suspend fun getSetPriceMap(setId: String): Map<String, PriceEntry> = catalog.pricesOf(expansionIdOf(setId))
 

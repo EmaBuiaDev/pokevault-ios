@@ -119,9 +119,8 @@ fun CardDetailScreen(
 
     // Il cuore: in quali wishlist sta la carta, come il picker di SetDetailScreen su Android.
     val wishlists = koinViewModel<WishlistViewModel>()
-    val wishState by wishlists.state.collectAsStateWithLifecycle()
     val wishId = ready?.card?.italianId()
-    val inLists = wishId?.let { wishState.listIdsWith(it) }.orEmpty()
+    val inLists = wishId?.let { wishlists.getWishlistIdsForCard(it) }.orEmpty()
     var picking by remember(cardId) { mutableStateOf(false) }
     var creatingList by remember(cardId) { mutableStateOf(false) }
     var wishNote by remember(cardId) { mutableStateOf<String?>(null) }
@@ -157,7 +156,7 @@ fun CardDetailScreen(
                 },
                 actions = {
                     if (ready != null && ownership.signedIn && wishId != null) {
-                        IconButton(onClick = { picking = true }, enabled = !wishState.isLoading || wishState.wishlists.isNotEmpty()) {
+                        IconButton(onClick = { picking = true }, enabled = !wishlists.isLoading || wishlists.wishlists.isNotEmpty()) {
                             Icon(
                                 if (inLists.isNotEmpty()) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                                 contentDescription = AppLocale.wishlistAddToList,
@@ -197,10 +196,10 @@ fun CardDetailScreen(
                             modifier = Modifier.padding(top = 12.dp),
                         )
                     }
-                    (wishState.saveError ?: wishNote)?.let {
+                    (wishlists.errorMessage ?: wishlists.successMessage ?: wishNote)?.let {
                         Text(
                             it,
-                            color = if (wishState.saveError != null) AppColors.red else AppColors.green,
+                            color = if (wishlists.errorMessage != null) AppColors.red else AppColors.green,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(top = 12.dp),
@@ -234,18 +233,18 @@ fun CardDetailScreen(
 
     if (picking && wishId != null) {
         WishlistPickerDialog(
-            wishlists = wishState.wishlists,
+            wishlists = wishlists.wishlists,
             selectedWishlistIds = inLists,
             canCreateNew = true,
             onDismiss = { picking = false },
             onCreateNewRequested = {
                 picking = false
-                if (wishState.canCreate) creatingList = true else wishNote = AppLocale.wishlistFreeLimit
+                if (wishlists.canCreateWishlist(wishlists.isPremium)) creatingList = true else wishNote = AppLocale.wishlistFreeLimit
             },
             onConfirmSelection = { selected ->
                 picking = false
                 wishNote = null
-                wishlists.setCardLists(wishId, selected) { wishNote = "Wishlist aggiornate" }
+                wishlists.updateCardWishlists(wishId, selected)
             },
         )
     }
@@ -254,12 +253,11 @@ fun CardDetailScreen(
         WishlistEditorDialog(
             onDismiss = { creatingList = false },
             onConfirm = { draft ->
-                wishlists.createWith(draft, wishId) {
-                    creatingList = false
-                    wishNote = "Wishlist creata e carta aggiunta"
+                wishlists.createWishlistAndAddCard(draft, wishId, wishlists.isPremium) { success ->
+                    if (success) creatingList = false
                 }
             },
-            isSaving = wishState.isSaving,
+            isSaving = wishlists.isSaving,
         )
     }
 

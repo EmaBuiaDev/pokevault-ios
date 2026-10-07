@@ -4,6 +4,8 @@ import com.emabuia.pokevault.data.Card
 import com.emabuia.pokevault.data.PriceEntry
 import com.emabuia.pokevault.data.WORKER_BASE_URL
 import com.emabuia.pokevault.data.lowOrAverage
+import com.emabuia.pokevault.data.remote.TcgCard
+import kotlin.jvm.JvmName
 
 /**
  * Conti, ordinamenti e filtri del Collector Lab.
@@ -268,5 +270,66 @@ object CollectorLab {
         val match = Regex("^([A-Z]*)0*(\\d+)").find(token)
             ?: return Pair(token, Int.MAX_VALUE)
         return Pair(match.groupValues[1], match.groupValues[2].toIntOrNull() ?: Int.MAX_VALUE)
+    }
+
+    // ── Le stesse, sulle carte del Pokedex (TcgCard), come le usa WishlistLab su Android ──
+    // JvmName: sulla JVM List<ChaseCard> e List<TcgCard> sono lo stesso tipo.
+
+    @JvmName("completionCostOfTcgCards")
+    fun completionCost(missing: List<TcgCard>): Double =
+        missing.sumOf { it.cardmarket?.prices.minimumEurPriceOrZero() }
+
+    @JvmName("pricedCountOfTcgCards")
+    fun pricedCount(missing: List<TcgCard>): Int =
+        missing.count { it.cardmarket?.prices.minimumEurPriceOrZero() > 0.0 }
+
+    @JvmName("cheapestMissingTcgCard")
+    fun cheapestMissing(missing: List<TcgCard>): TcgCard? =
+        missing.filter { it.cardmarket?.prices.minimumEurPriceOrZero() > 0.0 }
+            .minByOrNull { it.cardmarket?.prices.minimumEurPriceOrZero() }
+
+    @JvmName("mostExpensiveMissingTcgCard")
+    fun mostExpensiveMissing(missing: List<TcgCard>): TcgCard? =
+        missing.filter { it.cardmarket?.prices.minimumEurPriceOrZero() > 0.0 }
+            .maxByOrNull { it.cardmarket?.prices.minimumEurPriceOrZero() }
+
+    @JvmName("sortTcgCards")
+    fun sortChaseCards(cards: List<TcgCard>, sort: ChaseCardSort): List<TcgCard> = when (sort) {
+        ChaseCardSort.NUMBER -> cards.sortedWith(tcgCardNumberComparator)
+        ChaseCardSort.NAME -> cards.sortedWith(
+            compareBy<TcgCard> { it.name.lowercase() }.then(tcgCardNumberComparator)
+        )
+        ChaseCardSort.PRICE_DESC -> cards.sortedWith(
+            compareByDescending<TcgCard> { it.cardmarket?.prices.minimumEurPriceOrZero() }
+                .then(tcgCardNumberComparator)
+        )
+        // Nel crescente le carte senza prezzo vanno in fondo.
+        ChaseCardSort.PRICE_ASC -> cards.sortedWith(
+            compareBy<TcgCard> { it.cardmarket?.prices.minimumEurPriceOrZero() <= 0.0 }
+                .thenBy { it.cardmarket?.prices.minimumEurPriceOrZero() }
+                .then(tcgCardNumberComparator)
+        )
+    }
+
+    @JvmName("filterTcgCards")
+    fun filterChaseCards(cards: List<TcgCard>, query: String): List<TcgCard> {
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return cards
+        return cards.filter { card ->
+            card.name.lowercase().contains(q) ||
+                card.number.lowercase().contains(q) ||
+                (card.rarity ?: "").lowercase().contains(q)
+        }
+    }
+
+    /** cardNumberComparator di Android, sulle TcgCard. */
+    val tcgCardNumberComparator: Comparator<TcgCard> = Comparator { a, b ->
+        val (prefixA, numberA) = cardNumberKey(a.number)
+        val (prefixB, numberB) = cardNumberKey(b.number)
+        when {
+            prefixA != prefixB -> prefixA.compareTo(prefixB)
+            numberA != numberB -> numberA.compareTo(numberB)
+            else -> a.number.compareTo(b.number)
+        }
     }
 }

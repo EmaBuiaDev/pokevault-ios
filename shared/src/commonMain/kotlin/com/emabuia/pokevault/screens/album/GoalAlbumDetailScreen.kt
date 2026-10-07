@@ -47,7 +47,6 @@ import com.emabuia.pokevault.util.CollectorLab
 import com.emabuia.pokevault.util.ImageUrlUtils
 import com.emabuia.pokevault.util.RarityUtils
 import com.emabuia.pokevault.screens.wishlist.WishlistViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.launch
 
@@ -111,7 +110,6 @@ fun GoalAlbumDetailScreen(
     viewModel: GoalAlbumViewModel = koinViewModel(),
     wishlistViewModel: WishlistViewModel = koinViewModel()
 ) {
-    val wishlistState by wishlistViewModel.state.collectAsStateWithLifecycle()
     val album = viewModel.getGoalAlbumById(goalAlbumId)
     var selectedTab by remember { mutableStateOf(ChaseTab.ALL) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -195,7 +193,7 @@ fun GoalAlbumDetailScreen(
 
     fun openWishlistPicker(cardIds: List<String>) {
         if (cardIds.isEmpty()) return
-        if (wishlistState.wishlists.isEmpty()) {
+        if (wishlistViewModel.wishlists.isEmpty()) {
             scope.launch { snackbarHostState.showSnackbar(AppLocale.chaseWishlistNoList) }
             return
         }
@@ -411,7 +409,7 @@ fun GoalAlbumDetailScreen(
 
     wishlistTargets?.let { cardIds ->
         WishlistPickerDialog(
-            wishlists = wishlistState.wishlists,
+            wishlists = wishlistViewModel.wishlists,
             selectedWishlistIds = emptySet(),
             canCreateNew = false,
             title = AppLocale.chaseAddMissingToWishlist,

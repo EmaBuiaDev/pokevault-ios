@@ -185,9 +185,9 @@ class WishlistWritesTest {
 
     @Test
     fun namesAndBudgetsAreReadLikeOnAndroid() {
-        assertTrue(WishlistViewModel.isValidName(" Natale "))
-        assertFalse(WishlistViewModel.isValidName("   "))
-        assertFalse(WishlistViewModel.isValidName("x".repeat(41)))
+        assertTrue(WishlistViewModel.isValidWishlistName(" Natale "))
+        assertFalse(WishlistViewModel.isValidWishlistName("   "))
+        assertFalse(WishlistViewModel.isValidWishlistName("x".repeat(41)))
         assertEquals(30.5, WishlistViewModel.parseBudget("30,50 €"))
         assertEquals(0.0, WishlistViewModel.parseBudget("-4"))
     }

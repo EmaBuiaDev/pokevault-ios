@@ -51,7 +51,8 @@ import com.emabuia.pokevault.screens.illustrator.IllustratorDetailScreen
 import com.emabuia.pokevault.screens.illustrator.IllustratorListScreen
 import com.emabuia.pokevault.screens.settings.SettingsScreen
 import com.emabuia.pokevault.screens.stats.StatsScreen
-import com.emabuia.pokevault.screens.wishlist.WishlistScreen
+import com.emabuia.pokevault.screens.wishlist.WishlistDetailScreen
+import com.emabuia.pokevault.screens.wishlist.WishlistListScreen
 import com.emabuia.pokevault.ui.home.HomeScreen
 import com.emabuia.pokevault.ui.navigation.BottomTab
 import com.emabuia.pokevault.ui.navigation.PokeVaultBottomBar
@@ -98,6 +99,9 @@ data class CardDetailDestination(val expansionId: String, val cardId: String)
 
 @Serializable
 object WishlistDestination
+
+@Serializable
+data class WishlistDetailDestination(val wishlistId: String)
 
 @Serializable
 object SettingsDestination
@@ -383,9 +387,19 @@ fun App() {
                         }
                         composable<WishlistDestination> {
                             RequireLogin { _, _ ->
-                                WishlistScreen(
+                                WishlistListScreen(
                                     onBack = { navController.popBackStack() },
-                                    onCardClick = { card -> navController.navigate(CardDetailDestination(card.espansioneId, card.cardId)) },
+                                    onPremiumRequired = {},
+                                    onWishlistClick = { id -> navController.navigate(WishlistDetailDestination(id)) },
+                                )
+                            }
+                        }
+                        composable<WishlistDetailDestination> { entry ->
+                            val destination = entry.toRoute<WishlistDetailDestination>()
+                            RequireLogin { _, _ ->
+                                WishlistDetailScreen(
+                                    wishlistId = destination.wishlistId,
+                                    onBack = { navController.popBackStack() },
                                 )
                             }
                         }
