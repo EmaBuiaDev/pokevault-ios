@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.screens.scanner
 
+import com.emabuia.pokevault.testcompat.SharedLog
 import androidx.lifecycle.ViewModelStore
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.Card
@@ -54,7 +55,8 @@ import kotlin.test.assertTrue
 class ScannerFlowTest {
     private val dir = Path(SystemTemporaryDirectory, "pokevault-scan-${Random.nextLong().toULong()}").toString()
     private val json = headersOf(HttpHeaders.ContentType, "application/json")
-    private val commits = mutableListOf<JsonObject>()
+    // Scritte dal server finto e lette dal test su thread diversi: vedi SharedLog.
+    private val commits = SharedLog<JsonObject>()
 
     // Ogni ViewModel del test, chiuso alla fine come quando si esce dalla
     // schermata: smette di partire lavoro nuovo quando il test e' finito.
@@ -92,7 +94,7 @@ class ScannerFlowTest {
             path.endsWith("/users/uid-1") -> respond("""{"fields":{"name":{"stringValue":"Ash"}}}""", HttpStatusCode.OK, json)
             path.endsWith(":runQuery") -> respond("[]", HttpStatusCode.OK, json)
             path.endsWith(":commit") -> {
-                commits += Json.parseToJsonElement(bodyText(request)).jsonObject["writes"]!!.jsonArray.map { it.jsonObject }
+                commits.addAll(Json.parseToJsonElement(bodyText(request)).jsonObject["writes"]!!.jsonArray.map { it.jsonObject })
                 respond("{}", HttpStatusCode.OK, json)
             }
             path.contains("/users/uid-1/cards/") -> respond(
@@ -164,9 +166,11 @@ class ScannerFlowTest {
 
         if (vm.uiState.pendingCard == null) vm.selectCandidate(proposed)
         vm.confirmAdd()
-        waitFor { vm.uiState.addedCount == 1 }
+        // Anche l'"Annulla": arriva subito dopo il conteggio, e chiamare
+        // undoLastAdd() in mezzo (il test gira su un altro thread) non fa niente.
+        waitFor { vm.uiState.addedCount == 1 && vm.uiState.undo != null }
         assertEquals(1, vm.uiState.addedCount)
-        val created = commits.first { "update" in it }["update"]!!.jsonObject["fields"]!!.jsonObject
+        val created = commits.snapshot.first { "update" in it }["update"]!!.jsonObject["fields"]!!.jsonObject
         assertEquals("ita:me04:67", created["apiCardId"]!!.jsonObject["stringValue"]!!.jsonPrimitive.content)
         assertEquals("Near Mint", created["condition"]!!.jsonObject["stringValue"]!!.jsonPrimitive.content)
         assertEquals("0.5", created["estimatedValue"]!!.jsonObject["doubleValue"]!!.jsonPrimitive.content)
@@ -176,7 +180,7 @@ class ScannerFlowTest {
         vm.undoLastAdd()
         waitFor { vm.uiState.addedCount == 0 }
         assertEquals(0, vm.uiState.addedCount)
-        assertTrue(commits.any { "delete" in it })
+        assertTrue(commits.snapshot.any { "delete" in it })
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.screens.trade
 
+import com.emabuia.pokevault.testcompat.SharedLog
 import androidx.lifecycle.ViewModelStore
 import com.emabuia.pokevault.data.AuthRepository
 import com.emabuia.pokevault.data.Card
@@ -63,8 +64,9 @@ class TradeRadarFlowTest {
     private val json = headersOf(HttpHeaders.ContentType, "application/json")
 
     /** Le chiamate al server TradeRadar: metodo, percorso e corpo. */
-    private val tradeCalls = mutableListOf<Triple<HttpMethod, String, String>>()
-    private val commits = mutableListOf<String>()
+    // Scritte dal server finto e lette dal test su thread diversi: vedi SharedLog.
+    private val tradeCalls = SharedLog<Triple<HttpMethod, String, String>>()
+    private val commits = SharedLog<String>()
     private var hasProfile = true
     private var cardsBroken = false
 
@@ -103,7 +105,7 @@ class TradeRadarFlowTest {
                 HttpStatusCode.OK, json,
             )
             path.startsWith("/v1/trade/") -> {
-                tradeCalls += Triple(request.method, path, bodyText(request))
+                tradeCalls.add(Triple(request.method, path, bodyText(request)))
                 trade(request.method, path.removePrefix("/v1/trade/"))
                     ?.let { (code, body) -> respond(body, code, json) }
                     ?: respond("""{"error":"not_found"}""", HttpStatusCode.NotFound, json)
@@ -111,7 +113,7 @@ class TradeRadarFlowTest {
             path.endsWith("/users/uid-1") -> respond("""{"fields":{"name":{"stringValue":"Ash"}}}""", HttpStatusCode.OK, json)
             path.endsWith(":runQuery") -> respond("[]", HttpStatusCode.OK, json)
             path.endsWith(":commit") -> {
-                commits += Json.parseToJsonElement(bodyText(request)).jsonObject["writes"]!!.jsonArray.joinToString { it.toString() }
+                commits.add(Json.parseToJsonElement(bodyText(request)).jsonObject["writes"]!!.jsonArray.joinToString { it.toString() })
                 respond("{}", HttpStatusCode.OK, json)
             }
             path.endsWith("/users/uid-1/cards/doc-1") -> respond("""{"fields":$PIKACHU_FIELDS}""", HttpStatusCode.OK, json)
@@ -199,7 +201,7 @@ class TradeRadarFlowTest {
         fail("Dopo 10 secondi non e' vera: $what")
     }
 
-    private fun sent(method: HttpMethod, path: String) = tradeCalls.filter { it.first == method && it.second == "/v1/trade/$path" }
+    private fun sent(method: HttpMethod, path: String) = tradeCalls.snapshot.filter { it.first == method && it.second == "/v1/trade/$path" }
 
     @Test
     fun withoutLocationTheProfileIsNotSent() = runTest {
@@ -269,13 +271,13 @@ class TradeRadarFlowTest {
         assertNull(vm.closing)
 
         // Una copia data: doc-1 passa da 3 a 2.
-        assertTrue(commits.any { it.contains("cards/doc-1") && it.contains("\"integerValue\":\"2\"") }, commits.joinToString("\n"))
+        assertTrue(commits.snapshot.any { it.contains("cards/doc-1") && it.contains("\"integerValue\":\"2\"") }, commits.snapshot.joinToString("\n"))
         // Quella ricevuta entra col prezzo minimo dello snapshot e il nome del set italiano.
-        val added = commits.single { it.contains("\"ita:sv06:67\"") && it.contains("estimatedValue") }
+        val added = commits.snapshot.single { it.contains("\"ita:sv06:67\"") && it.contains("estimatedValue") }
         assertTrue(added.contains("0.5"), added)
         assertTrue(added.contains("Crepuscolo Mascherato"), added)
         // Ed esce dalla wishlist.
-        assertTrue(commits.any { it.contains("wishlists/wl-1") && it.contains("removeAllFromArray") }, commits.joinToString("\n"))
+        assertTrue(commits.snapshot.any { it.contains("wishlists/wl-1") && it.contains("removeAllFromArray") }, commits.snapshot.joinToString("\n"))
 
         // Fatto una volta per tutte: anche riaprendo l'app.
         assertFalse(vm.needsCollectionUpdate(done))
