@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.emabuia.pokevault.data.CollectionRepository
 import com.emabuia.pokevault.data.CollectionWriter
 import com.emabuia.pokevault.data.PokedexCatalog
 import com.emabuia.pokevault.data.PriceEntry
@@ -22,12 +23,14 @@ import com.emabuia.pokevault.data.remote.TcgCard
 import com.emabuia.pokevault.data.remote.TcgPlayer
 import com.emabuia.pokevault.data.remote.TcgPriceInfo
 import com.emabuia.pokevault.data.remote.TcgSet
+import com.emabuia.pokevault.util.OwnedCardsIndex
 import com.emabuia.pokevault.util.hasPositiveEurPrice
 import com.emabuia.pokevault.util.minimumEurPriceOrZero
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.emabuia.pokevault.util.IllustratorNames
@@ -75,7 +78,9 @@ data class SetsUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val isAddingCard: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    /** Le carte possedute, per il bordo verde nei risultati della ricerca. */
+    val owned: OwnedCardsIndex = OwnedCardsIndex()
 ) {
     /** Quante voci di filtro sono accese, su tutte le dimensioni. */
     val activeCardFilterCount: Int
@@ -87,6 +92,7 @@ data class SetsUiState(
 class SetsViewModel(
     private val repository: PokedexCatalog,
     private val writer: CollectionWriter,
+    private val collection: CollectionRepository,
 ) : ViewModel() {
 
     private var searchJob: Job? = null
@@ -537,14 +543,45 @@ class SetsViewModel(
     fun addCardWithDetails(tcgCard: TcgCard, variant: String, quantity: Int, condition: String, language: String) {
         viewModelScope.launch {
             uiState = uiState.copy(isAddingCard = tcgCard.id)
-            val prices = tcgCard.cardmarket?.prices
-            val price = prices?.let { PriceEntry(avg = it.averageSellPrice, low = it.lowPrice, trend = it.trendPrice) }
+            val price = priceEntryOfCard(tcgCard, variant)
             uiState = try {
                 writer.addFromCatalog(tcgCard.source, tcgCard.set?.name.orEmpty(), price, variant, quantity, condition, language)
-                uiState.copy(isAddingCard = null, successMessage = "${tcgCard.name} aggiunta!")
+                uiState.copy(
+                    isAddingCard = null,
+                    successMessage = "${tcgCard.name} aggiunta!",
+                    // Il bordo verde subito: la rilettura della collezione
+                    // arriva un attimo dopo e riscrive lo stesso valore.
+                    owned = uiState.owned.plus(tcgCard.id, variant),
+                )
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
                 uiState.copy(isAddingCard = null, errorMessage = "Errore")
+            }
+        }
+    }
+
+    private var ownedCardsJob: Job? = null
+
+    /**
+     * Le carte possedute, per i risultati della ricerca. Parte alla prima
+     * ricerca e non all'apertura del Pokedex: chi guarda solo le espansioni
+     * non paga la lettura della collezione. Una volta sola per ViewModel.
+     */
+    fun observeOwnedCards() {
+        if (ownedCardsJob != null) return
+        ownedCardsJob = viewModelScope.launch {
+            // Si rilegge a ogni scrittura in collezione: su Android era il
+            // listener di Firestore.
+            collection.changes.collectLatest {
+                val cards = try {
+                    collection.load()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    // Senza accesso, o senza rete: niente bordi verdi, non e' un errore.
+                    return@collectLatest
+                }
+                val index = withContext(Dispatchers.Default) { OwnedCardsIndex.from(cards) }
+                uiState = uiState.copy(owned = index)
             }
         }
     }

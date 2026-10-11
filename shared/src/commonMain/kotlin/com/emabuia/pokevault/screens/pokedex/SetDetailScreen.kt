@@ -1228,7 +1228,15 @@ fun TcgCardCompactItem(
     onLongClick: (() -> Unit)? = null,
     onQuickAddClick: () -> Unit,
     onWishlistClick: () -> Unit,
-    onVariantSelected: (String) -> Unit = {}
+    onVariantSelected: (String) -> Unit = {},
+    // I tre qui sotto servono alla ricerca carte; coi valori di default la
+    // tessera e' quella di sempre dell'espansione.
+    /** Simbolo e sigla dell'espansione in alto a sinistra: nella ricerca le carte vengono da set diversi. */
+    setBadge: SetBadge? = null,
+    /** Scurire le carte che non si hanno: nell'espansione si', nella ricerca no (sarebbero quasi tutte). */
+    dimWhenNotOwned: Boolean = true,
+    /** Solo cuore e +, senza nome ne' prezzo: per le griglie fitte, dove non ci starebbero. */
+    compactFooter: Boolean = false
 ) {
     val variantOptions = remember(card.tcgplayer?.prices?.keys, card.rarity, card.set?.releaseDate) {
         CardOptions.getBaseVariantsForCard(card)
@@ -1310,7 +1318,7 @@ fun TcgCardCompactItem(
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.18f))
                 )
-            } else if (!isOwned && !isSelected && !isAdding) {
+            } else if (dimWhenNotOwned && !isOwned && !isSelected && !isAdding) {
                 Box(modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f)))
@@ -1342,6 +1350,15 @@ fun TcgCardCompactItem(
                         Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(13.dp))
                     }
                 }
+            }
+
+            if (setBadge != null && !isSelectionMode) {
+                SetBadgeChip(
+                    badge = setBadge,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(4.dp)
+                )
             }
 
             // In alto a destra: quali stampe si hanno, non solo che si ha la
@@ -1400,7 +1417,7 @@ fun TcgCardCompactItem(
                         if (isSelectionMode) {
                             Text(
                                 card.name,
-                                color = AppColors.textPrimary,
+                                color = Color.White,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -1421,24 +1438,30 @@ fun TcgCardCompactItem(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.Bottom
                             ) {
-                                Text(
-                                    text = card.name,
-                                    color = AppColors.textPrimary,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f)
-                                )
+                                if (compactFooter) {
+                                    Spacer(modifier = Modifier.weight(1f))
+                                } else {
+                                    Text(
+                                        text = card.name,
+                                        color = Color.White, // sulla sfumatura nera: col tema chiaro textPrimary non si leggeva
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
 
                                 Column(
                                     horizontalAlignment = Alignment.End,
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    val priceText = resolveDisplayPriceText(card)
-                                    if (priceText != null) {
+                                    val priceText = if (compactFooter) null else resolveDisplayPriceText(card)
+                                    if (compactFooter) {
+                                        // Niente prezzo: sta nella scheda della carta.
+                                    } else if (priceText != null) {
                                         Text(
                                             text = priceText,
                                             color = AppColors.green,

@@ -55,8 +55,8 @@ typealias CardImages = TcgImages
  * non si sa; [total]: le carte nel catalogo, segrete comprese.
  */
 data class TcgSet(
-    val id: String,
-    val name: String,
+    val id: String = "",
+    val name: String = "",
     val printedTotal: Int = 0,
     val series: String = "",
     val language: String? = null,
@@ -64,6 +64,11 @@ data class TcgSet(
     /** "yyyy-MM-dd" come la manda il Worker; vuota se non si sa. */
     val releaseDate: String = "",
     val images: SetImages = SetImages(),
+    /**
+     * La sigla ufficiale ("PAF", "SSH"), da /v1/expansions (schema/016 del
+     * Worker). Vuota dove non la sappiamo: in quel caso non si mostra niente.
+     */
+    val abbreviation: String = "",
 )
 
 /** Il set dentro una carta: su Android e' una classe a parte con un sottoinsieme dei campi. */

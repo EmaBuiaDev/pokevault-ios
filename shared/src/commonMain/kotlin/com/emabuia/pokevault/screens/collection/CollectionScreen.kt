@@ -509,7 +509,12 @@ private fun Toolbar(
  * disegno a ogni tocco, e non diceva ne' cosa fosse ne' in che verso andasse.
  */
 @Composable
-private fun ColumnsStepper(columns: Int, onChange: (Int) -> Unit) {
+internal fun ColumnsStepper(
+    columns: Int,
+    onChange: (Int) -> Unit,
+    min: Int = CollectionViewModel.MIN_COLUMNS,
+    max: Int = CollectionViewModel.MAX_COLUMNS
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -520,7 +525,7 @@ private fun ColumnsStepper(columns: Int, onChange: (Int) -> Unit) {
         StepperButton(
             icon = Icons.Default.Remove,
             description = AppLocale.fewerPerRow,
-            enabled = columns > CollectionViewModel.MIN_COLUMNS,
+            enabled = columns > min,
             onClick = { onChange(-1) }
         )
         Text(
@@ -533,7 +538,7 @@ private fun ColumnsStepper(columns: Int, onChange: (Int) -> Unit) {
         StepperButton(
             icon = Icons.Default.Add,
             description = AppLocale.morePerRow,
-            enabled = columns < CollectionViewModel.MAX_COLUMNS,
+            enabled = columns < max,
             onClick = { onChange(1) }
         )
     }
@@ -586,7 +591,7 @@ private fun MenuOption(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SegmentedLayout(selected: CollectionLayout, onSelect: (CollectionLayout) -> Unit) {
+internal fun SegmentedLayout(selected: CollectionLayout, onSelect: (CollectionLayout) -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))

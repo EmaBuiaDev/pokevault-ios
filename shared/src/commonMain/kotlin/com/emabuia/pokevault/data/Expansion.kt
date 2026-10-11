@@ -17,6 +17,8 @@ data class Expansion(
     val baseSetCode: String? = null,
     val releaseDate: String? = null,
     val series: String? = null,
+    /** La sigla ufficiale ("PAF"), schema/016 del Worker. Null dove manca. */
+    val abbreviation: String? = null,
 ) {
     // Cartella su R2: il codice del set in maiuscolo.
     val folderName: String get() = (baseSetCode ?: id).uppercase()

@@ -15,6 +15,7 @@ import com.emabuia.pokevault.data.remote.TcgCard
 import com.emabuia.pokevault.data.remote.TcgPlayer
 import com.emabuia.pokevault.data.remote.TcgPriceInfo
 import com.emabuia.pokevault.data.remote.TcgSet
+import com.emabuia.pokevault.data.remote.italianSetTotal
 import com.emabuia.pokevault.data.model.CardOptions
 import io.ktor.utils.io.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -261,19 +262,23 @@ class PokedexCatalog(private val catalog: CatalogRepository) {
 
         /** buildItalianTcgSet di Android: nome, serie e data sono quelli di D1, il logo e' su R2. */
         fun toTcgSet(expansion: Expansion): TcgSet {
-            val total = ITALIAN_PRINTED_TOTAL_BY_EXPANSION[expansion.id.lowercase()]
+            val printedTotal = ITALIAN_PRINTED_TOTAL_BY_EXPANSION[expansion.id.lowercase()]
                 ?: expansion.officialCount?.takeIf { it > 0 }
                 ?: expansion.cardCount
             val logo = expansion.logoUrl(WORKER_BASE_URL)
             return TcgSet(
                 id = italianSetId(expansion.id),
                 name = expansion.name,
-                printedTotal = total,
+                printedTotal = printedTotal,
                 series = expansion.series?.takeIf { it.isNotBlank() }?.let(ItalianTranslations::translateSeriesName).orEmpty(),
                 language = "ITA",
-                total = total,
+                // Le carte del nostro catalogo, le stesse che l'espansione mostra
+                // aperta (italianSetTotal su Android): il 30 Anniversario ne ha 161,
+                // non 128. Il totale stampato resta per la ricerca per numero.
+                total = italianSetTotal(cardCount = expansion.cardCount, fallback = printedTotal),
                 releaseDate = expansion.releaseDate.orEmpty(),
                 images = SetImages(symbol = logo, logo = logo),
+                abbreviation = expansion.abbreviation?.trim().orEmpty(),
             )
         }
 
