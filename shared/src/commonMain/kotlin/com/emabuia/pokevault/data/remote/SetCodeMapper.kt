@@ -42,6 +42,20 @@ object SetCodeMapper {
         // qualunque delle due venisse prima: "Kadabra MEG 55" tornava la 55 di
         // MEP, che e' un altro Pokemon.
         "MEP" to "mep",
+        // Le energie base di PTCGL ("Basic {G} Energy SVE 9"). Dal 10/10/2026
+        // i due set esistono anche nel catalogo italiano: con l'alias la
+        // decklist prende l'energia esatta di quella stampa, non una qualsiasi
+        // del tipo giusto (vedi resolveBasicEnergyCard in DeckLabViewModel).
+        "SVE" to "sve",
+        "MEE" to "mee",
+        // I Trainer Kit entrati il 10/10/2026: la loro sigla ufficiale
+        // (expansions.upstream_set_code) non somiglia all'id, e senza alias
+        // "TK6S" diventava "tk6s", che non e' nessun set. Li tiene d'occhio
+        // SigleDecklistTest, che legge le sigle da D1.
+        "TK6S" to "tk-xy-sy",
+        "TK7A" to "tk-xy-b",
+        "TK10L" to "tk-sm-l",
+        "TK10A" to "tk-sm-r",
         "ME2PT5" to "asc",
         // Le due uscite dopo Caos Nascente. Senza alias il codice delle
         // decklist (PBL, 30C) non portava a nessuna espansione italiana, e

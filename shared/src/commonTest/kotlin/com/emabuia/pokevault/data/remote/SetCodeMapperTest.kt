@@ -34,6 +34,19 @@ class SetCodeMapperTest {
         // White Flare / Fuoco Bianco.
         assertEquals("zsv10pt5", SetCodeMapper.normalizeDecklistSetCode("BLK"))
         assertEquals("rsv10pt5", SetCodeMapper.normalizeDecklistSetCode("wht"))
+
+        // Energie base: il codice di PTCGL e l'id dell'espansione italiana
+        // devono portare allo stesso set, se no l'energia non si trova.
+        assertEquals("sve", SetCodeMapper.normalizeDecklistSetCode("SVE"))
+        assertEquals("sve", SetCodeMapper.normalizeDecklistSetCode("sve"))
+        assertEquals("mee", SetCodeMapper.normalizeDecklistSetCode("MEE"))
+
+        // Trainer Kit: sigla ufficiale e id (col trattino) devono coincidere.
+        assertEquals("tk-xy-sy", SetCodeMapper.normalizeDecklistSetCode("TK6S"))
+        assertEquals("tk-xy-sy", SetCodeMapper.normalizeDecklistSetCode("tk-xy-sy"))
+        assertEquals("tk-xy-b", SetCodeMapper.normalizeDecklistSetCode("TK7A"))
+        assertEquals("tk-sm-l", SetCodeMapper.normalizeDecklistSetCode("TK10L"))
+        assertEquals("tk-sm-r", SetCodeMapper.normalizeDecklistSetCode("TK10A"))
     }
 
     @Test
