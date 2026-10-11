@@ -95,6 +95,15 @@ object AppLocale {
     val changeGridDensity: String get() = "Cambia densita griglia"
     val changeView: String get() = "Cambia vista"
     val collapseAll: String get() = "Chiudi tutte"
+    val openAll: String get() = "Apri tutte"
+    fun cardsPerRow(count: Int): String = "$count per riga"
+    val fewerPerRow: String get() = "Meno carte per riga"
+    val morePerRow: String get() = "Più carte per riga"
+    fun collectionExpansionsCount(count: Int): String = when {
+        isItalian -> if (count == 1) "1 espansione" else "$count espansioni"
+        else -> if (count == 1) "1 set" else "$count sets"
+    }
+    val saveBeforeChangingCard: String get() = "Salva o annulla le modifiche prima di cambiare carta"
     val collectionLayoutAll: String get() = "Tutte"
     val collectionLayoutByExpansion: String get() = "Per espansione"
     val collectionStatCards: String get() = "Carte"

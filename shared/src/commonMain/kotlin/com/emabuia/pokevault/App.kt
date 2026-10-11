@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.ime
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -33,6 +34,7 @@ import com.emabuia.pokevault.screens.auth.RequireLogin
 import com.emabuia.pokevault.screens.collection.AddCardScreen
 import com.emabuia.pokevault.screens.collection.CollectionScreen
 import com.emabuia.pokevault.screens.collection.CollectionShortcut
+import com.emabuia.pokevault.screens.collection.CollectionBrowse
 import com.emabuia.pokevault.screens.collection.CollectionCardDetailScreen
 import com.emabuia.pokevault.screens.competitive.AddMatchScreen
 import com.emabuia.pokevault.screens.competitive.AddTournamentScreen
@@ -156,9 +158,12 @@ object ScannerDestination
 @Serializable
 object TradeRadarDestination
 
-/** Una carta della collezione, con tutte le sue stampe: [key] e' la chiave della tessera. */
+/**
+ * Una carta della collezione, con tutte le sue stampe: [key] e' la chiave della
+ * tessera. [browse]: dalla collezione, il dettaglio scorre fra le carte con lo swipe.
+ */
 @Serializable
-data class CollectionCardDestination(val key: String)
+data class CollectionCardDestination(val key: String, val browse: Boolean = false)
 
 /** [tournamentId] null: torneo nuovo. */
 @Serializable
@@ -258,7 +263,7 @@ fun App() {
                                     session = session,
                                     onLogout = onLogout,
                                     onAddCard = { navController.navigate(AddCardDestination) },
-                                    onCardClick = { key -> navController.navigate(CollectionCardDestination(key)) },
+                                    onCardClick = { key -> navController.navigate(CollectionCardDestination(key, browse = true)) },
                                 )
                             }
                         }
@@ -447,9 +452,16 @@ fun App() {
                             }
                         }
                         composable<CollectionCardDestination> { entry ->
+                            val route = entry.toRoute<CollectionCardDestination>()
+                            // Letto una volta: la collezione puo' riscriverlo, il
+                            // dettaglio gia' aperto deve tenere il suo.
+                            val browseKeys = remember(entry) {
+                                if (route.browse) CollectionBrowse.order else emptyList()
+                            }
                             RequireLogin { _, _ ->
                                 CollectionCardDetailScreen(
-                                    cardId = entry.toRoute<CollectionCardDestination>().key,
+                                    cardId = route.key,
+                                    browseKeys = browseKeys,
                                     onBack = { navController.popBackStack() },
                                     onIllustratorClick = { key -> navController.navigate(IllustratorDetailDestination(key)) },
                                 )

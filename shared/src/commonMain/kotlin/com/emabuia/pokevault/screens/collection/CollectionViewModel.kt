@@ -42,7 +42,7 @@ data class CollectionUiState(
     val stats: CollectionStats = CollectionStats(),
     val isLoading: Boolean = true,
     val isGridView: Boolean = true,
-    val gridColumns: Int = 3,
+    val gridColumns: Int = 4,
     val layout: CollectionLayout = CollectionLayout.BY_EXPANSION,
     val filter: CollectionFilter = CollectionFilter(),
     val sort: CollectionSort = CollectionSort.NUMBER,
@@ -228,8 +228,10 @@ class CollectionViewModel(
         uiState = uiState.copy(isGridView = !uiState.isGridView)
     }
 
-    fun toggleGridColumns() {
-        val next = when (uiState.gridColumns) { 2 -> 3; 3 -> 4; 4 -> 5; 5 -> 6; else -> 2 }
+    /** Una colonna in piu' o in meno, fra 2 e 6. */
+    fun changeGridColumns(delta: Int) {
+        val next = (uiState.gridColumns + delta).coerceIn(MIN_COLUMNS, MAX_COLUMNS)
+        if (next == uiState.gridColumns) return
         uiState = uiState.copy(gridColumns = next)
     }
 
@@ -269,7 +271,9 @@ class CollectionViewModel(
         }
     }
 
-    private companion object {
-        const val SEARCH_DEBOUNCE_MS = 250L
+    companion object {
+        private const val SEARCH_DEBOUNCE_MS = 250L
+        const val MIN_COLUMNS = 2
+        const val MAX_COLUMNS = 6
     }
 }

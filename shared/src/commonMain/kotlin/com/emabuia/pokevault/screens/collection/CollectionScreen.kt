@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
@@ -150,18 +151,34 @@ fun CollectionScreen(
     val shouldExpandAll = hasActiveFilters || state.sort != CollectionSort.NUMBER
     val visibleExpansionNames = remember(state.sections) { state.sections.map { it.expansion }.toSet() }
 
-    // Espansioni aperte: chiuse all'ingresso, come su Android.
-    var expandedExpansions by rememberSaveable(
+    // Espansioni aperte all'ingresso: si ricordano quelle chiuse a mano, non
+    // quelle aperte, cosi' anche un set nuovo arriva gia' aperto. Le righe
+    // della griglia sono lazy, aprirle tutte non costa.
+    // Salvate come lista: tornando dal dettaglio di una carta non si devono
+    // riaprire tutte.
+    var collapsedExpansions by rememberSaveable(
         stateSaver = listSaver<Set<String>, String>(save = { it.toList() }, restore = { it.toSet() })
     ) { mutableStateOf(setOf<String>()) }
-    var wasExpandingAll by remember { mutableStateOf(shouldExpandAll) }
-    LaunchedEffect(shouldExpandAll, visibleExpansionNames) {
-        expandedExpansions = when {
-            shouldExpandAll -> expandedExpansions + visibleExpansionNames
-            wasExpandingAll -> emptySet()
-            else -> expandedExpansions intersect visibleExpansionNames
+    // Un filtro o un ordinamento diverso riaprono tutto.
+    LaunchedEffect(shouldExpandAll) {
+        if (shouldExpandAll) collapsedExpansions = emptySet()
+    }
+    val expandedExpansions = visibleExpansionNames - collapsedExpansions
+
+    fun onTileClick(key: String) {
+        // Calcolato al tocco e non a ogni ricomposizione. Per espansione
+        // solo le sezioni aperte: si scorre fra le carte che si vedono.
+        // Letto dal ViewModel e dallo stato, non da `state`: chi tiene
+        // questa funzione puo' averla presa a una composizione vecchia.
+        val current = viewModel.uiState
+        CollectionBrowse.order = if (current.layout == CollectionLayout.ALL) {
+            current.visibleGroups.map { it.key }
+        } else {
+            current.sections
+                .filter { it.expansion !in collapsedExpansions }
+                .flatMap { section -> section.groups.map { it.key } }
         }
-        wasExpandingAll = shouldExpandAll
+        onCardClick(key)
     }
 
     Column(
@@ -175,22 +192,14 @@ fun CollectionScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(AppLocale.myCardsSingleLine, color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(AppLocale.myCardsSingleLine, color = AppColors.textPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(session.name, color = AppColors.textMuted, fontSize = 12.sp)
             }
             if (state.isGridView) {
-                IconButton(onClick = { viewModel.toggleGridColumns() }) {
-                    Icon(
-                        imageVector = when (state.gridColumns) {
-                            2 -> Icons.Default.ViewModule
-                            3 -> Icons.Default.GridView
-                            4 -> Icons.Default.Apps
-                            else -> Icons.Default.ViewComfy
-                        },
-                        contentDescription = AppLocale.changeGridDensity,
-                        tint = AppColors.textPrimary,
-                    )
-                }
+                ColumnsStepper(
+                    columns = state.gridColumns,
+                    onChange = viewModel::changeGridColumns
+                )
             }
             IconButton(onClick = { viewModel.toggleViewMode() }) {
                 Icon(
@@ -227,7 +236,7 @@ fun CollectionScreen(
                 visibleExpansionNames.isNotEmpty() &&
                 !expandedExpansions.containsAll(visibleExpansionNames),
             onToggleExpandAll = {
-                expandedExpansions = if (expandedExpansions.containsAll(visibleExpansionNames)) emptySet() else visibleExpansionNames
+                collapsedExpansions = if (expandedExpansions.containsAll(visibleExpansionNames)) visibleExpansionNames else emptySet()
             },
         )
 
@@ -248,20 +257,20 @@ fun CollectionScreen(
                     gridColumns = state.gridColumns,
                     selectedKeys = emptySet(),
                     isSelectionMode = false,
-                    onClick = onCardClick,
+                    onClick = ::onTileClick,
                     onLongClick = {},
                 )
                 else -> ByExpansionContent(
                     sections = state.sections,
                     expanded = expandedExpansions,
                     onToggle = { name ->
-                        expandedExpansions = if (name in expandedExpansions) expandedExpansions - name else expandedExpansions + name
+                        collapsedExpansions = if (name in collapsedExpansions) collapsedExpansions - name else collapsedExpansions + name
                     },
                     isGridView = state.isGridView,
                     gridColumns = state.gridColumns,
                     selectedKeys = emptySet(),
                     isSelectionMode = false,
-                    onClick = onCardClick,
+                    onClick = ::onTileClick,
                     onLongClick = {},
                 )
             }
@@ -386,81 +395,164 @@ private fun Toolbar(
     onToggleExpandAll: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        SegmentedLayout(selected = state.layout, onSelect = onLayout)
-        Spacer(modifier = Modifier.weight(1f))
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SegmentedLayout(selected = state.layout, onSelect = onLayout)
+            Spacer(modifier = Modifier.weight(1f))
 
-        if (state.layout == CollectionLayout.BY_EXPANSION && state.sections.isNotEmpty()) {
-            IconButton(onClick = onToggleExpandAll, modifier = Modifier.size(36.dp)) {
-                Icon(
-                    imageVector = if (canExpandAll) Icons.Default.UnfoldMore else Icons.Default.UnfoldLess,
-                    contentDescription = if (canExpandAll) AppLocale.expandAll else AppLocale.collapseAll,
-                    tint = AppColors.textSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-
-        Box {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AppColors.searchBar)
-                    .clickable { menuOpen = true }
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.Sort,
-                    contentDescription = AppLocale.sortMenuTitle,
-                    tint = AppColors.textSecondary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    state.sort.label(),
-                    color = AppColors.textPrimary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
-                )
-                Icon(
-                    Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = AppColors.textMuted,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            DropdownMenu(
-                expanded = menuOpen,
-                onDismissRequest = { menuOpen = false },
-                containerColor = AppColors.surface
-            ) {
-                MenuHeader(AppLocale.sortSectionCards)
-                CollectionSort.entries.forEach { sort ->
-                    MenuOption(
-                        label = sort.label(),
-                        selected = state.sort == sort,
-                        onClick = { onSort(sort); menuOpen = false }
+            Box {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(AppColors.searchBar)
+                        .clickable { menuOpen = true }
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Sort,
+                        contentDescription = AppLocale.sortMenuTitle,
+                        tint = AppColors.textSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        state.sort.label(),
+                        color = AppColors.textPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        tint = AppColors.textMuted,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-                if (state.layout == CollectionLayout.BY_EXPANSION) {
-                    HorizontalDivider(color = AppColors.textMuted.copy(alpha = 0.2f))
-                    MenuHeader(AppLocale.sortSectionExpansions)
-                    ExpansionOrder.entries.forEach { order ->
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    containerColor = AppColors.surface
+                ) {
+                    MenuHeader(AppLocale.sortSectionCards)
+                    CollectionSort.entries.forEach { sort ->
                         MenuOption(
-                            label = order.label(),
-                            selected = state.expansionOrder == order,
-                            onClick = { onExpansionOrder(order); menuOpen = false }
+                            label = sort.label(),
+                            selected = state.sort == sort,
+                            onClick = { onSort(sort); menuOpen = false }
                         )
+                    }
+                    if (state.layout == CollectionLayout.BY_EXPANSION) {
+                        HorizontalDivider(color = AppColors.textMuted.copy(alpha = 0.2f))
+                        MenuHeader(AppLocale.sortSectionExpansions)
+                        ExpansionOrder.entries.forEach { order ->
+                            MenuOption(
+                                label = order.label(),
+                                selected = state.expansionOrder == order,
+                                onClick = { onExpansionOrder(order); menuOpen = false }
+                            )
+                        }
                     }
                 }
             }
         }
+
+        // Una riga sua e non nella fila sopra: con "Prezzo più alto"
+        // nell'ordinamento una pillola in piu' lassu' non ci stava sui telefoni
+        // stretti. Prima era un'icona sola, e non si capiva cosa facesse.
+        if (state.layout == CollectionLayout.BY_EXPANSION && state.sections.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    AppLocale.collectionExpansionsCount(state.sections.size),
+                    color = AppColors.textMuted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(AppColors.searchBar)
+                        .clickable(onClick = onToggleExpandAll)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = if (canExpandAll) Icons.Default.UnfoldMore else Icons.Default.UnfoldLess,
+                        contentDescription = null,
+                        tint = AppColors.textSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        if (canExpandAll) AppLocale.openAll else AppLocale.collapseAll,
+                        color = AppColors.textPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Quante carte per riga, scritto in chiaro. Prima era un'icona che cambiava
+ * disegno a ogni tocco, e non diceva ne' cosa fosse ne' in che verso andasse.
+ */
+@Composable
+private fun ColumnsStepper(columns: Int, onChange: (Int) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(end = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(AppColors.searchBar)
+    ) {
+        StepperButton(
+            icon = Icons.Default.Remove,
+            description = AppLocale.fewerPerRow,
+            enabled = columns > CollectionViewModel.MIN_COLUMNS,
+            onClick = { onChange(-1) }
+        )
+        Text(
+            AppLocale.cardsPerRow(columns),
+            color = AppColors.textPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+        StepperButton(
+            icon = Icons.Default.Add,
+            description = AppLocale.morePerRow,
+            enabled = columns < CollectionViewModel.MAX_COLUMNS,
+            onClick = { onChange(1) }
+        )
+    }
+}
+
+@Composable
+private fun StepperButton(icon: ImageVector, description: String, enabled: Boolean, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .size(34.dp)
+            .clickable(enabled = enabled, onClick = onClick)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = description,
+            tint = if (enabled) AppColors.textPrimary else AppColors.textMuted.copy(alpha = 0.4f),
+            modifier = Modifier.size(16.dp)
+        )
     }
 }
 
