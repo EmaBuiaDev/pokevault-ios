@@ -189,7 +189,7 @@ class SetDetailViewModel(
         uiState = uiState.copy(selectedSupertype = supertype)
     }
 
-    private fun priceEntryOf(card: TcgCard): PriceEntry? = priceEntryOfCard(priced(card))
+    private fun priceEntryOf(card: TcgCard, variant: String): PriceEntry? = priceEntryOfCard(priced(card), variant)
 
     fun addCardWithDetails(tcgCard: TcgCard, variant: String, quantity: Int, condition: String, language: String) {
         viewModelScope.launch {
@@ -199,7 +199,7 @@ class SetDetailViewModel(
                 writer.addFromCatalog(
                     tcgCard.source,
                     tcgCard.set?.name ?: uiState.set?.name.orEmpty(),
-                    priceEntryOf(tcgCard),
+                    priceEntryOf(tcgCard, variant),
                     variant,
                     quantity,
                     condition,
@@ -227,9 +227,7 @@ class SetDetailViewModel(
             val originalOwnedIds = uiState.ownedCardIds
             val originalOwnedVariants = uiState.ownedVariants
             val prepared = cards.map { tcgCard ->
-                val availableVariants = CardOptions.getVariantsForCard(
-                    tcgCard.tcgplayer?.prices?.keys ?: emptySet(), tcgCard.rarity, tcgCard.set?.releaseDate,
-                )
+                val availableVariants = CardOptions.getBaseVariantsForCard(tcgCard)
                 val actualVariant = if (preferredVariant in availableVariants) preferredVariant
                 else availableVariants.firstOrNull() ?: "Holo"
                 tcgCard to actualVariant
@@ -247,7 +245,7 @@ class SetDetailViewModel(
                     writer.addFromCatalog(
                         card.source,
                         card.set?.name ?: uiState.set?.name.orEmpty(),
-                        priceEntryOf(card),
+                        priceEntryOf(card, variant),
                         variant,
                         1,
                         "Near Mint",
@@ -337,10 +335,21 @@ internal fun priceDataFromCard(card: TcgCard): PokeWalletPriceData? {
         eurAvg30 = prices.avg30,
         cardMarketUrl = card.cardmarket?.url,
         tcgPlayerUrl = card.tcgplayer?.url,
+        // I prezzi per stampa: il pannello mostra quello della stampa scelta.
+        variantPrices = card.italianPrice?.toLivePrices()?.variantPrices.orEmpty(),
     )
 }
 
-/** Il prezzo da salvare in collezione, dai prezzi Cardmarket della carta. */
-internal fun priceEntryOfCard(card: TcgCard): PriceEntry? = card.cardmarket?.prices?.let {
-    PriceEntry(avg = it.averageSellPrice, low = it.lowPrice, trend = it.trendPrice)
+/**
+ * Il prezzo da salvare in collezione per UNA stampa (priceForVariant su
+ * Android): la Reverse di una comune o una timbrata non valgono quanto la
+ * Normale. Il prezzo per stampa sta nella voce del Worker (campo v); dove
+ * manca resta quello della carta. Una stampa speciale senza prezzo suo si
+ * salva senza prezzo, invece che col prezzo della comune.
+ */
+internal fun priceEntryOfCard(card: TcgCard, variant: String? = null): PriceEntry? {
+    card.italianPrice?.let { return it.forVariant(variant) }
+    return card.cardmarket?.prices?.let {
+        PriceEntry(avg = it.averageSellPrice, low = it.lowPrice, trend = it.trendPrice)
+    }
 }

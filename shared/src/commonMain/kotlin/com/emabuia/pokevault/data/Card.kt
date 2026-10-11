@@ -1,5 +1,6 @@
 package com.emabuia.pokevault.data
 
+import com.emabuia.pokevault.data.model.VariantKeys
 import kotlinx.serialization.Serializable
 import kotlin.math.roundToLong
 
@@ -24,6 +25,15 @@ data class Card(
     val stage: String? = null,
     // Il Worker omette la chiave quando e' vuota.
     val illustratore: String? = null,
+    /**
+     * Le stampe che la carta ha davvero, dal worker (D1 card_variants):
+     * "Normal", "Reverse", "Holo", "1st Edition"... e le speciali con
+     * lavorazione o timbri ("Reverse|foil=pokeball", "Normal|stamp=pokemon-day").
+     *
+     * Null quando il worker non le manda: allora le stampe si deducono dalla
+     * rarita', come prima.
+     */
+    val stampe: List<String>? = null,
 ) {
     private val match get() = CARD_ID.matchEntire(cardId.trim())
 
@@ -69,7 +79,20 @@ data class PriceEntry(
     val usd: Double? = null,
     val usdLow: Double? = null,
     val url: String? = null,
+    /** Prezzi per stampa (vedi [LivePrices.variantPrices]). */
+    val v: Map<String, PriceEntry>? = null,
 ) {
+    /**
+     * Il prezzo di UNA stampa, con la stessa regola di [LivePrices.forVariant]:
+     * la stampa col prezzo suo prende quello, una base senza costa come la
+     * carta, una speciale senza non ha prezzo.
+     */
+    fun forVariant(variant: String?): PriceEntry? {
+        if (variant.isNullOrBlank()) return this
+        v?.get(variant)?.let { return it }
+        return if (VariantKeys.isSpecial(variant)) null else this
+    }
+
     /**
      * Il prezzo da mostrare: sempre il minimo Cardmarket, come sull'app
      * Android (deciso `low`, non `trend`); la media solo se il minimo manca, e
@@ -102,6 +125,12 @@ data class LivePrices(
     val usdLow: Double? = null,
     val cardMarketUrl: String? = null,
     val tcgPlayerUrl: String? = null,
+    /**
+     * I prezzi delle stampe che costano diverso da questa voce (snapshot
+     * italiano, campo `v`): la Reverse di una comune, una timbrata col suo
+     * prodotto Cardmarket. Vuoto dove la fonte non li ha.
+     */
+    val variantPrices: Map<String, LivePrices> = emptyMap(),
 ) {
     /** Almeno un prezzo in euro. */
     val hasEurPrices: Boolean
@@ -110,6 +139,20 @@ data class LivePrices(
     /** Le tre medie ci sono tutte: il grafichino si puo' disegnare. */
     val hasSparklineData: Boolean
         get() = eurAvg1 != null && eurAvg7 != null && eurAvg30 != null
+
+    /**
+     * Il prezzo di UNA stampa della carta.
+     *
+     * Una stampa con un prezzo suo prende quello. Una stampa base senza
+     * prezzo suo costa come questa voce: il worker scrive solo i prezzi che
+     * differiscono. Una stampa speciale senza prezzo suo non ne ha: dare a
+     * una Master Ball il prezzo della comune sarebbe un numero falso.
+     */
+    fun forVariant(variant: String?): LivePrices? {
+        if (variant.isNullOrBlank()) return this
+        variantPrices[variant]?.let { return it }
+        return if (VariantKeys.isSpecial(variant)) null else this
+    }
 }
 
 fun PriceEntry.toLivePrices(): LivePrices = LivePrices(
@@ -123,6 +166,10 @@ fun PriceEntry.toLivePrices(): LivePrices = LivePrices(
     usdLow = usdLow,
     // Il Worker ha solo il link a Cardmarket: quello di TCGPlayer resta spento.
     cardMarketUrl = url,
+    variantPrices = v.orEmpty()
+        .filterKeys { it.isNotBlank() }
+        .mapValues { (_, entry) -> entry.copy(v = null).toLivePrices() }
+        .filterValues { it.hasEurPrices },
 )
 
 /** `GET /ita/prices/{id}.json`: le chiavi sono i numeri di carta ("1", "GG01"). */

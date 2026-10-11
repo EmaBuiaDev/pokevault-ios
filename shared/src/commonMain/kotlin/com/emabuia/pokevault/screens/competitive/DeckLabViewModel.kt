@@ -584,6 +584,7 @@ class DeckLabViewModel(
             set = TcgSet(id = "ita:$expansionId", name = names[expansionId] ?: expansionId.uppercase()),
             rarity = rarity,
             source = this,
+            variants = stampe?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() },
         )
     }
 

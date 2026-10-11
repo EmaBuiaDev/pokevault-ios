@@ -17,6 +17,7 @@ import com.emabuia.pokevault.data.model.CardOptions
 import com.emabuia.pokevault.data.model.GoalAlbum
 import com.emabuia.pokevault.data.model.GoalCriteriaType
 import com.emabuia.pokevault.data.model.PokemonCard
+import com.emabuia.pokevault.data.model.VariantKeys
 import com.emabuia.pokevault.util.ChaseCard
 import com.emabuia.pokevault.util.ChaseRow
 import io.ktor.utils.io.CancellationException
@@ -253,13 +254,16 @@ class GoalAlbumViewModel(
         viewModelScope.launch {
             val ok = try {
                 val expansion = expansionOf(card.card.espansioneId)
-                // Le stampe possibili come nel dettaglio carta: dalla rarita' e dalla data del set.
-                val variants = CardOptions.getVariantsForCard(emptySet(), card.card.rarity, expansion?.releaseDate)
+                // Solo le stampe base (getBaseVariantsForCard su Android): quelle vere
+                // del catalogo, se no dalla rarita' e dalla data del set.
+                val variants = CardOptions.getVariantsForCard(emptySet(), card.card.rarity, expansion?.releaseDate, card.card.stampe)
+                    .let { all -> all.filterNot(VariantKeys::isSpecial).ifEmpty { all } }
+                val variant = variants.firstOrNull() ?: "Holo"
                 writer.addFromCatalog(
                     card.card,
                     expansion?.name.orEmpty(),
-                    card.price,
-                    variants.firstOrNull() ?: "Holo",
+                    card.price?.forVariant(variant),
+                    variant,
                     1,
                     "Near Mint",
                     CardOptions.LANGUAGES.first(),

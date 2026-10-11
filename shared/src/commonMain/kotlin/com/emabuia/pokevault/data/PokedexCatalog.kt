@@ -314,6 +314,8 @@ class PokedexCatalog(private val catalog: CatalogRepository) {
                     )
                 },
                 artist = card.illustratore?.takeIf { it.isNotBlank() },
+                variants = card.stampe?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() },
+                italianPrice = price,
             )
         }
     }

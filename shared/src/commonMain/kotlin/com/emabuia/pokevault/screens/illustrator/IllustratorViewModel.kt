@@ -169,7 +169,7 @@ class IllustratorViewModel(
                 writer.addFromCatalog(
                     card.source,
                     card.set?.name.orEmpty(),
-                    priceEntryOfCard(card),
+                    priceEntryOfCard(card, variant),
                     variant,
                     quantity,
                     condition,

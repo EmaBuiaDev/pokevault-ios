@@ -75,6 +75,8 @@ object AppLocale {
     val wishlistIconSet: String get() = "Completa set"
 
     val printLabel: String get() = "Stampa"
+    val specialPrintsLabel: String get() = "Stampe speciali"
+    val noPriceForPrint: String get() = "Nessun prezzo per questa stampa"
     val quantity: String get() = "Quantità"
     val condition: String get() = "Condizione"
     val languageLabel: String get() = "Lingua"

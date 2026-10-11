@@ -1,6 +1,7 @@
 package com.emabuia.pokevault.data.remote
 
 import com.emabuia.pokevault.data.Card
+import com.emabuia.pokevault.data.PriceEntry
 
 /**
  * Una carta del catalogo nella forma TcgCard dell'app Android
@@ -29,6 +30,19 @@ data class TcgCard(
     val cardmarket: CardMarket? = null,
     /** L'illustratore (ItalianCardRecord.illustratore): un nome di persona, non si traduce. */
     val artist: String? = null,
+    /**
+     * Le stampe vere della carta, dal catalogo italiano ([Card.stampe]):
+     * hanno la precedenza sulle chiavi TCGplayer e sulla rarita' in
+     * [com.emabuia.pokevault.data.model.CardOptions.getVariantsForCard].
+     * Null dove il catalogo non le conosce.
+     */
+    val variants: List<String>? = null,
+    /**
+     * La voce prezzi del Worker com'e' arrivata (/ita/prices), con i prezzi
+     * per stampa (campo v) che [cardmarket] non sa tenere. Null dove la carta
+     * non ha prezzi.
+     */
+    val italianPrice: PriceEntry? = null,
 )
 
 data class TcgImages(val small: String, val large: String = "")

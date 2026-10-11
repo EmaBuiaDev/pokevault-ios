@@ -459,11 +459,14 @@ class ScannerViewModel(
     fun variantsFor(card: TcgCard): List<String> {
         // Il catalogo italiano non porta i prezzi TCGplayer: decide la rarita'.
         val priceKeys = emptySet<String>()
-        // Senza rarita' e senza prezzi, CardOptions risponde "Holo": per una
-        // carta di cui non sappiamo niente e' una stampa inventata. Qui si
-        // resta su "Normale", che e' quello che lo scanner salvava da sempre.
-        if (card.rarity.isNullOrBlank() && priceKeys.isEmpty()) return listOf(FALLBACK_VARIANT)
-        return CardOptions.getVariantsForCard(priceKeys, card.rarity)
+        // Senza stampe dal catalogo, senza rarita' e senza prezzi, CardOptions
+        // risponde "Holo": per una carta di cui non sappiamo niente e' una
+        // stampa inventata. Qui si resta su "Normale", che e' quello che lo
+        // scanner salvava da sempre.
+        if (card.variants.isNullOrEmpty() && card.rarity.isNullOrBlank() && priceKeys.isEmpty()) return listOf(FALLBACK_VARIANT)
+        // Solo le base: dallo scanner si conferma al volo, e una timbrata si
+        // riconosce e si sceglie meglio dal dettaglio della carta.
+        return CardOptions.getBaseVariantsForCard(card)
             .ifEmpty { listOf(FALLBACK_VARIANT) }
     }
 
@@ -526,6 +529,7 @@ class ScannerViewModel(
                     hp = card.ps?.takeIf { it.isNotBlank() },
                     subtypes = listOfNotNull(card.stage?.trim()?.takeIf { it.isNotBlank() }),
                     types = card.tipo?.split(",")?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() },
+                    variants = card.stampe?.filter { it.isNotBlank() }?.takeIf { it.isNotEmpty() },
                 )
             }
     }
@@ -645,7 +649,8 @@ class ScannerViewModel(
         // Come su Android: prezzo dallo snapshot italiano, e la stessa stampa
         // gia' in collezione sale di quantita' invece di duplicarsi.
         val result = runCatching {
-            val price = catalog.expansionCards(tcgCard.source.espansioneId).priceOf(tcgCard.source)
+            // Il prezzo della STAMPA scelta: una Reverse non costa quanto la Normale.
+            val price = catalog.expansionCards(tcgCard.source.espansioneId).priceOf(tcgCard.source)?.forVariant(variant)
             writer.addFromCatalog(
                 card = tcgCard.source,
                 expansionName = tcgCard.set?.name ?: tcgCard.source.espansioneId.uppercase(),
