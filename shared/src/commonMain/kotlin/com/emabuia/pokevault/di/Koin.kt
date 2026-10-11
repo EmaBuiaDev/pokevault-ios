@@ -90,7 +90,7 @@ fun dataModule(cacheDir: String, dataDir: String) = module {
     single { HomeSpritePreference(get(named(DATA))) }
     single { AccountDeleter(get(), get(), get(), get(), get(), get(), get(named(CACHE))) }
     single { WishlistRepository(get(), get(), get(), get(named(CACHE)), get()) }
-    single { PremiumRepository(get(), get(), now = ::nowMillis) }
+    single { PremiumRepository(get(), get(), now = ::nowMillis, store = get(named(DATA))) }
     single { IllustratorRepository(get(), get(named(CACHE)), get(), get(), get()) }
     single { CollectorRepository(get(), get(), get(named(CACHE)), get()) }
     single { CompetitiveRepository(get(), get(), get(named(CACHE)), get()) }

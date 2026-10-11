@@ -77,6 +77,8 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.serialization.Serializable
 import com.emabuia.pokevault.screens.scanner.ScannerScreen
 import com.emabuia.pokevault.ui.navigation.ScannerFab
+import com.emabuia.pokevault.data.network.NetworkMonitor
+import com.emabuia.pokevault.ui.components.OfflineBanner
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
@@ -197,6 +199,8 @@ fun App() {
     // La tabella degli sprite si legge una volta, fuori dal thread principale:
     // le righe che la usano si ridisegnano da sole quando e' pronta.
     LaunchedEffect(Unit) { PokemonSpriteResolver.preload() }
+    // Il banner "sei offline": il monitor parte una volta sola.
+    LaunchedEffect(Unit) { NetworkMonitor.start() }
     PokeVaultTheme(
         darkTheme = when (themeMode) {
             ThemeMode.LIGHT -> false
@@ -486,12 +490,22 @@ fun App() {
                         }
                     }
                     // Lo Scanner sopra la barra, sulle quattro sezioni: come su Android.
-                    if (selectedTab != null && WindowInsets.ime.getBottom(LocalDensity.current) == 0) {
+                    val showScannerFab = selectedTab != null && WindowInsets.ime.getBottom(LocalDensity.current) == 0
+                    if (showScannerFab) {
                         ScannerFab(
                             onClick = { navController.navigate(ScannerDestination) },
                             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 20.dp, bottom = 16.dp),
                         )
                     }
+                    // Come su Android: sopra la barra, non modale. Sale sopra lo
+                    // Scanner invece di coprirlo.
+                    val isOnline by NetworkMonitor.isOnline.collectAsState()
+                    OfflineBanner(
+                        visible = !isOnline,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = if (showScannerFab) 84.dp else 16.dp),
+                    )
                 }
                 // Con la tastiera aperta la barra si toglie, come su Android: sotto la
                 // tastiera non serve e ruberebbe spazio al campo su cui si scrive.

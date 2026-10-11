@@ -10,6 +10,10 @@ package com.emabuia.pokevault.util
 object AppLocale {
     val isItalian: Boolean get() = true
 
+    // Su Android: "le modifiche partono al ritorno della rete". Qui le scritture
+    // vanno al server e senza rete non partono: si dice quello che succede.
+    val offlineBanner: String get() = "Sei offline · per salvare le modifiche serve la rete"
+
     val errorPrefix: String get() = "Errore"
     val unknownExpansion: String get() = "Espansione sconosciuta"
     val unknown: String get() = "Sconosciuto"
